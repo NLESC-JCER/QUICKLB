@@ -413,7 +413,6 @@
         integer, allocatable                    :: local_ids_temp(:)
         type(MPI_COMM)                          :: comm_inca
 
-      call XTRACE_REGION_BEGIN                   ('LB_PART_SORT2')
 
         comm_inca %MPI_VAL = mpi_comm_inca
 
@@ -457,7 +456,6 @@
         call this%REALLOCATE_BUFFERS()
         call this%CREATE_COMMUNICATION()
 
-      call XTRACE_REGION_END                           ('LB_PART_SORT2')
       end subroutine
 
       subroutine PARTITION_GREEDY ( this )
@@ -489,7 +487,6 @@
         real(real32), allocatable               :: all_li(:)
         type(MPI_STATUS)                        :: mpi_stat
         type(MPI_COMM)                          :: comm_inca
-      call XTRACE_REGION_BEGIN                        ('LB_PART_GREEDY')
         comm_inca % MPI_VAL = mpi_comm_inca
 
         cum_time = 0.
@@ -680,7 +677,6 @@
 
         call this%REALLOCATE_BUFFERS()
         call this%CREATE_COMMUNICATION()
-      call XTRACE_REGION_END                          ('LB_PART_GREEDY')
 
       end subroutine PARTITION_GREEDY
 
@@ -812,8 +808,6 @@
 
         this_np => this
 
-
-      call XTRACE_REGION_BEGIN                        ('LB_PART_ZOLTAN')
       call MPI_BARRIER(mpi_comm_inca, mpi_err)
 
         if( .not.zoltan_initialized )then
@@ -923,7 +917,6 @@
         call this%REALLOCATE_BUFFERS()
         call this%CREATE_COMMUNICATION()
 
-      call XTRACE_REGION_END                          ('LB_PART_ZOLTAN')
       end subroutine
 #endif
 

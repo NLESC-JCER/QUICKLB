@@ -131,7 +131,6 @@
         use LOADBALANCER_DEBUG, only          : ASSERT
         use MPI_F08
         use LOADBALANCER, only                : t_loadbalancer
-        use XTRACE
         implicit none
         type(t_loadbalancer)                 :: lb
         integer                              :: timestep
@@ -148,7 +147,6 @@
 
         if( .not. lb_log )RETURN
 
-      call XTRACE_REGION_BEGIN                         ('LB_OUTPUT')
 
         if( whoami == 0 )then
           allocate(totals(mpi_nnode),stat=err)
@@ -221,9 +219,7 @@
           deallocate(totals)
         end if
 
-      call XTRACE_REGION_END                           ('LB_OUTPUT')
         if( .not. lb_log_detailed )RETURN
-      call XTRACE_REGION_BEGIN                         ('LB_OUTPUT_DET')
         max_block = 0
         do n = 2, size(lb%vtxdist)
           if( lb%vtxdist(n)-lb%vtxdist(n-1) > max_block )then
@@ -269,7 +265,6 @@
         call MPI_BARRIER(mpi_comm_inca, err)
 
         deallocate(buf_int)
-      call XTRACE_REGION_END                           ('LB_OUTPUT_DET')
       end subroutine
 
       end module

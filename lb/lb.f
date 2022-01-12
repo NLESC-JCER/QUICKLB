@@ -469,7 +469,6 @@
       end subroutine LOADBALANCER_EVALUATE
 
       subroutine LOADBALANCER_COMMUNICATE_DATA ( this )
-        use XTRACE
         use mpi_f08
         implicit none
         class(t_loadbalancer), intent(inout)      :: this
@@ -484,7 +483,6 @@
         type(MPI_COMM) :: comm_inca
         comm_inca %MPI_VAL = mpi_comm_inca
 
-      call XTRACE_REGION_BEGIN                          ('LB_COMM_DATA')
 
         call this%EXPORT_DATA( this%block_npoints,
      &                         this%export_num_ids,
@@ -530,12 +528,10 @@
      &                  , send_reqs, MPI_STATUSES_IGNORE, err)
         end associate
 
-      call XTRACE_REGION_END                            ('LB_COMM_DATA')
       end subroutine LOADBALANCER_COMMUNICATE_DATA
 
 !---- Inverse of communicate data
       subroutine LOADBALANCER_COMMUNICATE_RESULT ( this )
-        use XTRACE
         use mpi_f08
         implicit none
         class(t_loadbalancer)                     :: this
@@ -550,7 +546,6 @@
         integer                                   :: err
         type(MPI_COMM) :: comm_inca
         comm_inca %MPI_VAL = mpi_comm_inca
-      call XTRACE_REGION_BEGIN                        ('LB_COMM_RESULT')
         call this%EXPORT_RESULT( this%block_npoints,
      &                           this%import_num_ids,
      &                           this%import_ids,
@@ -593,7 +588,6 @@
      &                  , send_reqs, MPI_STATUSES_IGNORE, err)
         end associate
 
-      call XTRACE_REGION_END                          ('LB_COMM_RESULT')
       end subroutine LOADBALANCER_COMMUNICATE_RESULT
 
       subroutine LOADBALANCER_DESTROY ( this )
