@@ -14,14 +14,22 @@
       use iso_fortran_env, only : int32,real32
       use iso_c_binding, only : c_f_pointer, c_ptr, c_loc
 
-      integer(int32)                      :: zolt_int_pointer_size = 0
-      logical                             :: zoltan_initialized =.false.
+      private
 
       type(MPI_COMM)                      :: comm_local  = MPI_COMM_NULL
       integer                             :: whoami_local= -1
       integer                             :: nnode_local = -1
       type(MPI_GROUP)                     :: group_local =MPI_GROUP_NULL
       type(MPI_GROUP)                     :: group_global=MPI_GROUP_NULL
+
+#ifdef ENABLE_ZOLTAN
+      integer(int32)                      :: zolt_int_pointer_size = 0
+      logical                             :: zoltan_initialized =.false.
+      public :: PARTITION_ZOLTAN
+#endif
+
+      public  :: PARTITION_GREEDY, PARTITION_SORT
+      public  :: PARTITION_SORT2
 
       contains
 
@@ -78,7 +86,6 @@
         integer                                 :: n, nn, x
         integer                                 :: n_p(1), nn_p(1)
         integer                                 :: points_recv
-        integer, allocatable                    :: local_ids_temp(:)
         integer, allocatable                    :: import_ids_temp(:)
         integer, allocatable                    :: import_proc_temp(:)
         integer                                 :: imported_points
@@ -95,10 +102,8 @@
         integer                             :: partner_rank
         real(4)                             :: temp
         logical                             :: communicate
-        type(MPI_COMM)                      :: comm_inca
         real(4)                             :: cur_li_p(1)
 
-        comm_inca %MPI_VAL = mpi_comm_inca
         imported_points = this%import_num_ids
 
 !---- Static buffers
@@ -126,8 +131,8 @@
 !---- Get our partners mpi rank from weight rank
           partner_rank = nnode-rank+1
           partner_mpi_rank = all_rank(partner_rank)
-!---- If this is not the inca comm find the global partner rank
-          if( comm_inca /= comm )then
+!---- If this is not the comm find the global partner rank
+          if( this%comm /= comm )then
           call MPI_GROUP_TRANSLATE_RANKS(group_local, 1
      &     , (/partner_mpi_rank/), group_global
      &     , partner_mpi_rank_g, err)
@@ -143,7 +148,7 @@
      &        (partner_li < 0) )then
              communicate = .false.
           end if
-          if( my_li == 0. .or. partner_li == 0. )then
+          if( (my_li == 0.) .or. (partner_li == 0.) )then
             communicate = .false.
           end if
 
@@ -260,9 +265,6 @@
         real(4), intent(out)                    :: cum_time
         integer, intent(out)                    :: points_left
         integer                                 :: n, nn, err
-        type(MPI_COMM)                          :: comm_inca
-
-        comm_inca% MPI_VAL = mpi_comm_inca
         cum_time = 0.
 
 !---- Deallocated what we are going to allocate
@@ -277,14 +279,14 @@
 !---- First get the total time of local blocks
         local_time(1) = sum(this % weights)
         call MPI_ALLREDUCE(local_time, avg_time, 1, MPI_FLOAT, MPI_SUM
-     &                    , comm_inca, err)
+     &                    , this%comm, err)
 #ifdef DEBUG_CHECKS
         call ASSERT(err == MPI_SUCCESS
      &        , __FILE__
      &        , __LINE__
      &        , "AllReduce Failed")
 #endif
-        avg_time = avg_time / mpi_nnode
+        avg_time = avg_time / this% mpi_nnode
 
 !---- Then we know what we should keep and what we should send away
         do n = 1, this%nblocks
@@ -325,8 +327,8 @@
 
 !---- Create node local comm
       if( comm_local == MPI_COMM_NULL )then
-        call MPI_COMM_SPLIT_TYPE ( comm_inca, MPI_COMM_TYPE_SHARED
-     &      , whoami, MPI_INFO_NULL, comm_local, err )
+        call MPI_COMM_SPLIT_TYPE ( this%comm, MPI_COMM_TYPE_SHARED
+     &      , this% mpi_rank, MPI_INFO_NULL, comm_local, err )
 #ifdef DEBUG_CHECKS
         call ASSERT(err == MPI_SUCCESS
      &        , __FILE__
@@ -342,7 +344,7 @@
      &        , __LINE__
      &        , "COMM_GROUP Failed")
 #endif
-        call MPI_COMM_GROUP(comm_inca,group_global,err)
+        call MPI_COMM_GROUP(this%comm,group_global,err)
 #ifdef DEBUG_CHECKS
         call ASSERT(err == MPI_SUCCESS
      &        , __FILE__
@@ -362,12 +364,8 @@
         real(4)                                :: imported_time
         integer                                 :: points_left
         integer                                 :: points_sent
-        integer                                 :: n, nn, err
+        integer                                 :: n 
         integer, allocatable                    :: local_ids_temp(:)
-        type(MPI_COMM)                          :: comm_inca
-
-
-        comm_inca %MPI_VAL = mpi_comm_inca
 
         call PARTITION_SORT_SETUP( this,  cum_time, avg_time, cur_li
      &                           , points_left)
@@ -375,8 +373,9 @@
         points_sent = 0
 
 !---- partition over every process
-        call PARTITION_SORT_ALGORITHM( this, comm_inca, mpi_nnode
-     &                               , whoami, cur_li(1), points_left
+        call PARTITION_SORT_ALGORITHM( this, this%comm, this% mpi_nnode
+     &                               , this% mpi_rank, cur_li(1)
+     &                               , points_left
      &                               , points_sent
      &                               , cum_time, imported_time
      &                               , avg_time(1) )
@@ -409,12 +408,8 @@
         real(4)                                 :: imported_time
         integer                                 :: points_left
         integer                                 :: points_sent
-        integer                                 :: n, nn, err
+        integer                                 :: n
         integer, allocatable                    :: local_ids_temp(:)
-        type(MPI_COMM)                          :: comm_inca
-
-
-        comm_inca %MPI_VAL = mpi_comm_inca
 
         call PARTITION_SORT_SETUP( this,  cum_time, avg_time, cur_li
      &                           , points_left )
@@ -433,8 +428,9 @@
      &         / avg_time(1)
 
 !---- Then partition the residual over every process
-        call PARTITION_SORT_ALGORITHM( this, comm_inca, mpi_nnode
-     &                               , whoami, cur_li(1), points_left
+        call PARTITION_SORT_ALGORITHM( this, this%comm, this% mpi_nnode
+     &                               , this% mpi_rank, cur_li(1)
+     &                               , points_left
      &                               , points_sent
      &                               , cum_time, imported_time
      &                               , avg_time(1) )
@@ -480,14 +476,11 @@
         integer, allocatable                    :: import_ids_temp(:)
         integer, allocatable                    :: import_proc_temp(:)
         logical                                 :: finished
-        logical                                 :: all_finished
         type(MPI_REQUEST)                       :: send_req(2)
         integer, allocatable                    :: points_buf(:)
         real(real32), allocatable               :: weight_buf(:)
         real(real32), allocatable               :: all_li(:)
         type(MPI_STATUS)                        :: mpi_stat
-        type(MPI_COMM)                          :: comm_inca
-        comm_inca % MPI_VAL = mpi_comm_inca
 
         cum_time = 0.
         finished = .false.
@@ -505,16 +498,16 @@
 !---- First get the total time of local blocks
         local_time(1) = sum(this % weights)
         call MPI_ALLREDUCE( local_time, avg_time, 1, MPI_FLOAT, MPI_SUM
-     &                    , comm_inca, err)
+     &                    , this%comm, err)
 #ifdef DEBUG_CHECKS
         call ASSERT(err == MPI_SUCCESS
      &        , __FILE__
      &        , __LINE__
      &        , "AllReduce Failed")
 #endif
-        avg_time = avg_time / mpi_nnode
+        avg_time = avg_time / this% mpi_nnode
 
-        allocate(all_li(mpi_nnode))
+        allocate(all_li(this% mpi_nnode))
 
 !---- Get our load imbalance
         cur_li(1)= (local_time(1)
@@ -523,7 +516,7 @@
 
 !---- Communicate our current surplus/deficit to everyone
         call MPI_ALLGATHER( cur_li,1,MPI_FLOAT,all_li,1,MPI_FLOAT
-     &               , comm_inca, err)
+     &               , this%comm, err)
 
         prev_li = maxval(all_li)
 
@@ -557,13 +550,14 @@
         points_left = this%export_num_ids
         points_send = 0
         imported_points = 0
-        next_proc = mod((whoami + 1),mpi_nnode)
-        prev_proc = mod((whoami - 1)+mpi_nnode,mpi_nnode)
-        do x = 1, min(this% max_it,mpi_nnode-1)
+        next_proc = mod((this% mpi_rank + 1),this% mpi_nnode)
+        prev_proc = mod((this% mpi_rank-1)
+     &       + this%mpi_nnode, this%mpi_nnode)
+        do x = 1, min(this% max_it,this% mpi_nnode-1)
 
 !---- Update Load imbalances (for next iteration)
-          do n = 1, mpi_nnode
-            nn = mod(n + x - 1,mpi_nnode) + 1
+          do n = 1, this% mpi_nnode
+            nn = mod(n + x - 1,this% mpi_nnode) + 1
             if( all_li(n) <= 0. )then
               cycle
             end if
@@ -587,21 +581,21 @@
      &                   : this%export_num_ids))
           call MPI_ISEND( buf
      &        , points_left, MPI_INT, next_proc, 42
-     &        , comm_inca, send_req(1), err)
+     &        , this%comm, send_req(1), err)
          associate(buf2 => this%weights(this%local_num_ids+points_send+1
      &                  : this%nblocks))
 
           call MPI_ISEND(buf2
      &        , points_left, MPI_FLOAT, next_proc, 43
-     &        , comm_inca, send_req(2), err)
-          call MPI_PROBE(prev_proc, 42, comm_inca, mpi_stat, err)
+     &        , this%comm, send_req(2), err)
+          call MPI_PROBE(prev_proc, 42, this%comm, mpi_stat, err)
           call MPI_GET_COUNT(mpi_stat, MPI_INT, points_recv, err)
           allocate(points_buf(points_recv))
           allocate(weight_buf(points_recv))
           call MPI_RECV(points_buf, points_recv, MPI_INT, prev_proc
-     &                 , 42, comm_inca, MPI_STATUS_IGNORE, err)
+     &                 , 42, this%comm, MPI_STATUS_IGNORE, err)
           call MPI_RECV(weight_buf, points_recv, MPI_FLOAT, prev_proc
-     &                 , 43, comm_inca, MPI_STATUS_IGNORE, err)
+     &                 , 43, this%comm, MPI_STATUS_IGNORE, err)
           call MPI_WAITALL(2,send_req,MPI_STATUSES_IGNORE, err)
           end associate
           end associate
@@ -638,8 +632,8 @@
 
           n_p(1) = n
           call MPI_ISEND(n_p, 1, MPI_INT, prev_proc, 44
-     &        , comm_inca, send_req(1), err)
-          call MPI_RECV(nn_p, 1, MPI_INT, next_proc, 44, comm_inca
+     &        , this%comm, send_req(1), err)
+          call MPI_RECV(nn_p, 1, MPI_INT, next_proc, 44, this%comm
      &        , MPI_STATUS_IGNORE, err)
           nn = nn_p(1)
           call MPI_WAIT(send_req(1),MPI_STATUS_IGNORE, err)
@@ -652,13 +646,11 @@
             points_left = points_left - nn
           end if
 #ifdef DEBUG_CHECKS
-          call ASSERT(next_proc /= whoami
-     &          , __FILE__
-     &          , __LINE__
+          call ASSERT(next_proc /= this% mpi_rank
      &          , "Unable to distribute all points over blocks")
 #endif
-          next_proc = mod((next_proc + 1),mpi_nnode)
-          prev_proc = mod((prev_proc - 1)+mpi_nnode,mpi_nnode)
+          next_proc = mod((next_proc + 1),this% mpi_nnode)
+          prev_proc = mod((prev_proc - 1)+this%mpi_nnode,this%mpi_nnode)
         end do
         this% import_num_ids = imported_points
 
@@ -808,7 +800,7 @@
 
         this_np => this
 
-      call MPI_BARRIER(mpi_comm_inca, mpi_err)
+      call MPI_BARRIER(this%comm, mpi_err)
 
         if( .not.zoltan_initialized )then
           error = ZOLTAN_INITIALIZE(version)
@@ -818,7 +810,7 @@
      &        , "Error initializing ZOLTAN")
           zoltan_initialized = .true.
         end if
-          this%zoltan => ZOLTAN_CREATE(mpi_comm_inca)
+          this%zoltan => ZOLTAN_CREATE(this%comm)
           error = ZOLTAN_SET_PARAM(this%zoltan,"DEBUG_LEVEL","0")
           error = ZOLTAN_SET_PARAM(this%zoltan,"CHECK_HYPERGRAPH","0")
           error = ZOLTAN_SET_PARAM(this%zoltan,"LB_METHOD","HYPERGRAPH")
@@ -911,9 +903,9 @@
           nnn = nnn+1
         end do
 
-        call MPI_BARRIER(mpi_comm_inca,mpi_err)
+        call MPI_BARRIER(this%comm,mpi_err)
         call ZOLTAN_DESTROY(this%zoltan)
-        call MPI_BARRIER(mpi_comm_inca,mpi_err)
+        call MPI_BARRIER(this%comm,mpi_err)
         call this%REALLOCATE_BUFFERS()
         call this%CREATE_COMMUNICATION()
 

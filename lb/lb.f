@@ -11,6 +11,7 @@
 !---- include asserts, perhaps merge this with inca_error in some way
       use LOADBALANCER_DEBUG, only : ASSERT
       use LOADBALANCER_COMMUNICATION
+      use MPI_F08
 #ifdef ENABLE_ZOLTAN
       use ZOLTAN, only                 : ZOLTAN_STRUCT
 #endif
@@ -32,6 +33,13 @@
 
 !---- Loadbalancer, should be created through LOADBALANCER_CREATE
       type t_loadbalancer
+!---- Info
+        integer                                  :: mpi_rank
+        type(MPI_COMM)                           :: comm
+        integer                                  :: mpi_nnode
+        logical                                  :: lb_log
+        logical                                  :: lb_log_detailed
+
 !---- Parameters
         integer                                  :: block_npoints
         integer                                  :: data_block_bytes
@@ -133,7 +141,6 @@
      &      => LOADBALANCER_COMMUNICATE_DATA
         procedure,public,pass :: COMMUNICATE_RESULT
      &      => LOADBALANCER_COMMUNICATE_RESULT
-        procedure,public,pass :: EVALUATE => LOADBALANCER_EVALUATE
         procedure,public,pass :: CALCULATE_GID_OFFSET
      &      => LOADBALANCER_CALCULATE_GID_OFFSET
         procedure,public,pass :: CREATE_COMMUNICATION
@@ -222,6 +229,7 @@
         integer                                       :: n, nn, proc
         integer                                       :: temp1, temp2
         integer                                       :: nn_prev
+        proc = -1
 
         associate (comm => this%communication)
 
@@ -351,6 +359,7 @@
         end associate
 
       end subroutine
+
 !****f* LOADBALANCER/LOADBALANCER_CREATE
 !  NAME
 !     LOADBALANCER_CREATE
@@ -368,8 +377,8 @@
      &                               , data_block_bytes
      &                               , result_block_bytes
      &                               , nblocks
-     &                               , block_npoints)
-        use mpi_f08
+     &                               , block_npoints
+     &                               , communicator)
         use iso_c_binding, only : c_size_t
         implicit none
         class(t_loadbalancer)                   :: loadbalancer
@@ -377,18 +386,17 @@
         integer                                 :: result_block_bytes
         integer                                 :: nblocks
         integer                                 :: block_npoints
-        integer                                 :: alloc_stat
-        call ASSERT(data_block_bytes > 0
-     &             , __FILE__
-     &             , __LINE__ )
+        type(MPI_COMM)                          :: communicator
+
+        loadbalancer%comm = communicator
+        call MPI_COMM_RANK(communicator, loadbalancer%mpi_rank)
+        call MPI_COMM_SIZE(communicator, loadbalancer%mpi_nnode)
+
+        call ASSERT(data_block_bytes > 0)
         loadbalancer%data_block_bytes = data_block_bytes
-        call ASSERT(result_block_bytes > 0
-     &             , __FILE__
-     &             , __LINE__ )
+        call ASSERT(result_block_bytes > 0)
         loadbalancer%result_block_bytes = result_block_bytes
-        call ASSERT(block_npoints > 0
-     &             , __FILE__
-     &             , __LINE__ )
+        call ASSERT(block_npoints > 0)
         loadbalancer% block_npoints = block_npoints
 !---- Allocate Arrays for loadbalancing
         allocate(loadbalancer% weights(nblocks))
@@ -415,33 +423,27 @@
 !  SOURCE
 !
       subroutine LOADBALANCER_CALCULATE_GID_OFFSET( this ,nblocks)
-        use mpi_f08
         implicit none
         class(t_loadbalancer), intent(inout)      :: this
         integer, intent(in)                      :: nblocks
-        integer                                  :: err
-        integer                                  :: i,newrank,buf
-        integer                                  :: newcomm
+        integer                                  :: i, err
 
         this%nblocks = nblocks
-        allocate(this%vtxdist(mpi_nnode+1))
+        allocate(this%vtxdist(this%mpi_nnode+1))
         this%vtxdist(1) = 0
 
         call MPI_ALLGATHER( nblocks, 1, MPI_INT
      &                    , this%vtxdist(2:), 1, MPI_INT
-     &                    , mpi_comm_inca, err)
+     &                    , this%comm, err)
 
-        call ASSERT(err == MPI_SUCCESS
-     &      , __FILE__
-     &      , __LINE__
-     &      , "Error in mpi allgather")
+        call ASSERT(err == MPI_SUCCESS, "Error in mpi allgather")
         ! Correct data in vtxdist
-        do i = 1, mpi_nnode
+        do i = 1, this%mpi_nnode
           this%vtxdist(i+1) = this%vtxdist(i) + this%vtxdist(i+1)
         end do
 
-        this%total_nblocks = this%vtxdist(mpi_nnode+1)
-        this%offset = this%vtxdist(whoami+1)
+        this%total_nblocks = this%vtxdist(this%mpi_rank+1)
+        this%offset = this%vtxdist(this%mpi_rank+1)
       end subroutine
 
       subroutine SET_EXPORT_IMPORT_ROUTINES ( this
@@ -462,14 +464,7 @@
         this% IMPORT_RESULT => import_result
       end subroutine
 
-      subroutine LOADBALANCER_EVALUATE ( this )
-        implicit none
-        class(t_loadbalancer)                     :: this
-
-      end subroutine LOADBALANCER_EVALUATE
-
       subroutine LOADBALANCER_COMMUNICATE_DATA ( this )
-        use mpi_f08
         implicit none
         class(t_loadbalancer), intent(inout)      :: this
         integer                                   :: n
@@ -481,7 +476,7 @@
      &     recv_slices(this%communication%imports_length)
         integer                                   :: err
         type(MPI_COMM) :: comm_inca
-        comm_inca %MPI_VAL = mpi_comm_inca
+        comm_inca = this%comm
 
 
         call this%EXPORT_DATA( this%block_npoints,
@@ -532,7 +527,6 @@
 
 !---- Inverse of communicate data
       subroutine LOADBALANCER_COMMUNICATE_RESULT ( this )
-        use mpi_f08
         implicit none
         class(t_loadbalancer)                     :: this
 
@@ -545,7 +539,7 @@
      &    send_slices(this%communication%imports_length)
         integer                                   :: err
         type(MPI_COMM) :: comm_inca
-        comm_inca %MPI_VAL = mpi_comm_inca
+        comm_inca = this%comm
         call this%EXPORT_RESULT( this%block_npoints,
      &                           this%import_num_ids,
      &                           this%import_ids,
@@ -593,6 +587,30 @@
       subroutine LOADBALANCER_DESTROY ( this )
         implicit none
         type(t_loadbalancer)                     :: this
+
+        if (allocated(this%export_ids)) deallocate(this%export_ids)
+        if (allocated(this%export_proc_ids))
+     &    deallocate(this%export_proc_ids)
+        if (associated(this%data_send_buffer))
+     &    deallocate(this%data_send_buffer)
+        if (associated(this%data_receive_buffer))
+     &    deallocate(this%data_receive_buffer)
+        if (associated(this%result_send_buffer))
+     &    deallocate(this%result_send_buffer)
+        if (associated(this%result_receive_buffer))
+     &    deallocate(this%result_receive_buffer)
+        if (allocated(this%import_ids)) deallocate(this%import_ids)
+        if (allocated(this%import_proc_ids))
+     &    deallocate(this%import_proc_ids)
+        if (allocated(this%local_ids))
+     &    deallocate(this%local_ids)
+        if (allocated(this%vtxdist)) deallocate(this%vtxdist)
+        if (allocated(this%weights)) deallocate(this%weights)
+        if (allocated(this%weights_prev)) deallocate(this%weights_prev)
+#ifdef ENABLE_ZOLTAN
+        if (associated(this%zoltan)) deallocate(this%zoltan)
+#endif
+        if (associated(this%lb_info)) deallocate(this%lb_info)
 
       end subroutine LOADBALANCER_DESTROY
 

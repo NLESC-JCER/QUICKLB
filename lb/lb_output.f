@@ -29,29 +29,12 @@
 
       contains
 
-      function FREE_UNIT()
-        implicit none
-        integer                                  :: FREE_UNIT
-        integer                                  :: x, iostat
-        logical                                  :: opened
-
-        do x = 1,100
-          inquire(unit=x,opened=opened, iostat=iostat)
-          if( iostat /= 0 )CYCLE
-          if( .not.opened )then
-            FREE_UNIT = x
-            exit
-          end if
-        end do
-      end function
-
       subroutine OPEN_LOGFILE
         implicit none
         character(32)                        :: filename
         integer                              :: err
         write(filename,'(A,I2,A)') "loadbalance.info"
-        fhandle = FREE_UNIT()
-        open( unit=fhandle, file = filename,
+        open( newunit=fhandle, file = filename,
      &        action = 'write', iostat = err )
         write(fhandle,'(A)')fdl
         write(fhandle,'(A)')"       Loadbalancing Library  Info:     "
@@ -66,11 +49,9 @@
         use MPI_F08
         use LOADBALANCER, only                : t_loadbalancer
         implicit none
-        character(32)                        :: filename
-        integer                              :: err, n
         type(t_loadbalancer)                 :: lb
 
-        if( whoami /= 0 )RETURN
+        if( lb%mpi_rank /= 0 )RETURN
 
         if( fhandle == -1 )then
           call OPEN_LOGFILE
@@ -137,23 +118,21 @@
         integer                              :: err, n, nn
         integer                              :: max_block
         integer                              :: recv_count
+        integer                              :: total_local_size
         integer, pointer, contiguous         :: buf_int(:)
         real(4), pointer, contiguous         :: buf_real(:)
 !---- Root process writes this, receiving per process would require less memory
 !---- But is probably slower
         type(t_tot_data), pointer,contiguous  :: totals(:)
-        type(t_tot_data)                      :: total_local
+        type(t_tot_data)                      :: total_local(1)
 
 
-        if( .not. lb_log )RETURN
+        if( .not. lb%lb_log )RETURN
 
 
-        if( whoami == 0 )then
-          allocate(totals(mpi_nnode),stat=err)
-          call ASSERT(err == 0
-     &        , __FILE__
-     &        , __LINE__
-     &        , "Error in allocation")
+        if( lb%mpi_rank == 0 )then
+          allocate(totals(lb%mpi_nnode),stat=err)
+          call ASSERT(err == 0, "Error in allocation")
 
           if( fhandle == -1 )then
             call OPEN_LOGFILE
@@ -164,7 +143,7 @@
           write(fhandle,'(A)')  fl
         end if
 
-        total_local%id = whoami
+        total_local%id = lb%mpi_rank
         total_local%local_num_ids = lb%local_num_ids
         total_local%export_num_ids = lb% export_num_ids
         total_local%import_num_ids = lb% import_num_ids
@@ -179,17 +158,18 @@
         total_local%local_weight = total_local%local_weight
      &                            + lb%weights(lb%local_ids(n))
         end do
-        if( whoami == 0 )then
+        total_local_size = sizeof(total_local)
+        if( lb%mpi_rank == 0 )then
           call MPI_GATHER(
-     &          total_local, sizeof(total_local), MPI_BYTE
-     &        , totals, sizeof(total_local), MPI_BYTE
-     &        , 0, mpi_comm_inca, err)
+     &          total_local, total_local_size, MPI_BYTE
+     &        , totals, total_local_size, MPI_BYTE
+     &        , 0, lb%comm, err)
         else
 !---- Fortran complains about recv event when it is not used
           call MPI_GATHER(
-     &          total_local, sizeof(total_local), MPI_BYTE
-     &        , total_local, sizeof(total_local), MPI_BYTE
-     &        , 0, mpi_comm_inca, err)
+     &          total_local, total_local_size, MPI_BYTE
+     &        , total_local, total_local_size, MPI_BYTE
+     &        , 0, lb%comm, err)
         end if
 #ifdef DEBUG_CHECKS
         call ASSERT(err == MPI_SUCCESS
@@ -198,12 +178,12 @@
      &        , "GATHER Failed")
 #endif
 
-        if( whoami == 0 )then
+        if( lb%mpi_rank == 0 )then
 !---- CSV like header
           write(fhandle,'(A)') "id, num_local_blocks"
      &        //", num_exported_blocks, num_imported_blocks, tot_weight"
      &        //", local_weight, export_weight"
-          do n = 1, mpi_nnode
+          do n = 1, lb%mpi_nnode
           write(fhandle,'(4(I12,",")2(E12.4E3,",")E12.4E3)')
      &            totals(n)%id
      &          , totals(n)%local_num_ids
@@ -219,7 +199,7 @@
           deallocate(totals)
         end if
 
-        if( .not. lb_log_detailed )RETURN
+        if( .not. lb%lb_log_detailed )RETURN
         max_block = 0
         do n = 2, size(lb%vtxdist)
           if( lb%vtxdist(n)-lb%vtxdist(n-1) > max_block )then
@@ -228,17 +208,17 @@
         end do
         allocate(buf_int(1:max_block))
 
-        buf_int = whoami
+        buf_int = lb%mpi_rank
         do n = 1, lb%export_num_ids
           buf_int(lb%export_ids(n)) = lb%export_proc_ids(n)
         end do
-        if( whoami /= 0 )then
+        if( lb%mpi_rank /= 0 )then
           call MPI_SEND( lb%weights, lb%nblocks, MPI_FLOAT
-     &                 , 0, 32, mpi_comm_inca, err)
+     &                 , 0, 32, lb%comm, err)
           call MPI_SEND( buf_int, lb%nblocks, MPI_INT
-     &                 , 0, 198, mpi_comm_inca, err)
+     &                 , 0, 198, lb%comm, err)
         end if
-        if( whoami == 0 )then
+        if( lb%mpi_rank == 0 )then
           allocate(buf_real(max_block))
           write(fhandle,'(A)') "Detailed information per block:"
           write(fhandle,'(A)') "id, weight, source_proc, compute_proc"
@@ -247,12 +227,12 @@
             write(fhandle,'(I10,",",E12.4E3,",",I10,",",I10)') nn
      &          , lb%weights(nn), 0, buf_int(nn)
           end do
-          do n = 1, mpi_nnode-1
+          do n = 1, lb%mpi_nnode-1
             recv_count = lb%vtxdist(n+2)-lb%vtxdist(n+1)
             call MPI_RECV( buf_real, recv_count, MPI_FLOAT
-     &                   , n, 32, mpi_comm_inca, MPI_STATUS_IGNORE, err)
+     &                   , n, 32, lb%comm, MPI_STATUS_IGNORE, err)
             call MPI_RECV( buf_int, recv_count, MPI_INT
-     &                   , n, 198, mpi_comm_inca,MPI_STATUS_IGNORE, err)
+     &                   , n, 198, lb%comm,MPI_STATUS_IGNORE, err)
 !---- Write others
             do nn = 1, recv_count
               write(fhandle,'(I10,",",E12.4E3,",",I10,",",I10)')
@@ -262,7 +242,7 @@
           deallocate(buf_real)
         end if
 
-        call MPI_BARRIER(mpi_comm_inca, err)
+        call MPI_BARRIER(lb%comm, err)
 
         deallocate(buf_int)
       end subroutine
