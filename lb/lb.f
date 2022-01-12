@@ -369,7 +369,7 @@
      &                               , result_block_bytes
      &                               , nblocks
      &                               , block_npoints)
-        use INCA_PARALLEL
+        use mpi_f08
         use iso_c_binding, only : c_size_t
         implicit none
         class(t_loadbalancer)                   :: loadbalancer
@@ -415,7 +415,7 @@
 !  SOURCE
 !
       subroutine LOADBALANCER_CALCULATE_GID_OFFSET( this ,nblocks)
-        use INCA_PARALLEL
+        use mpi_f08
         implicit none
         class(t_loadbalancer), intent(inout)      :: this
         integer, intent(in)                      :: nblocks
@@ -470,7 +470,6 @@
 
       subroutine LOADBALANCER_COMMUNICATE_DATA ( this )
         use XTRACE
-        use INCA_PARALLEL, only : mpi_comm_inca
         use mpi_f08
         implicit none
         class(t_loadbalancer), intent(inout)      :: this
@@ -524,7 +523,7 @@
 
         call this%IMPORT_DATA( this%block_npoints
      &                       , this%import_num_ids
-     &                       , this%import_ids ! Not used in INCA
+     &                       , this%import_ids
      &                       , this%data_receive_buffer )
 
         call MPI_WAITALL( this%communication%exports_length
@@ -537,7 +536,6 @@
 !---- Inverse of communicate data
       subroutine LOADBALANCER_COMMUNICATE_RESULT ( this )
         use XTRACE
-        use INCA_PARALLEL, only : mpi_comm_inca
         use mpi_f08
         implicit none
         class(t_loadbalancer)                     :: this
@@ -588,7 +586,7 @@
 
         call this%IMPORT_RESULT( this%block_npoints
      &                         , this%import_num_ids
-     &                         , this%import_ids ! Not used in INCA
+     &                         , this%import_ids 
      &                         , this%data_receive_buffer )
 
         call MPI_WAITALL( this%communication%imports_length

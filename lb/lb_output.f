@@ -63,7 +63,7 @@
       end subroutine
 
       subroutine USED_LOADBALANCING_INFO(lb)
-        use INCA_PARALLEL, only               : whoami
+        use MPI_F08
         use LOADBALANCER, only                : t_loadbalancer
         implicit none
         character(32)                        :: filename
@@ -129,11 +129,8 @@
       end subroutine
       subroutine OUTPUT_PARTITIONING(lb, timestep)
         use LOADBALANCER_DEBUG, only          : ASSERT
-        use INCA_PARALLEL, only               : whoami, mpi_nnode
-     &      , MPI_BYTE, mpi_comm_inca, MPI_SUCCESS, MPI_INT, MPI_FLOAT
-     &      , MPI_STATUS_IGNORE
+        use MPI_F08
         use LOADBALANCER, only                : t_loadbalancer
-        use INCA_PARAMS, only                 : lb_log, lb_log_detailed
         use XTRACE
         implicit none
         type(t_loadbalancer)                 :: lb

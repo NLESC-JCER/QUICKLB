@@ -3,7 +3,6 @@
 
       subroutine SET_PARTITION_ALGORITHM ( this , name, max_rel_li
      &                                   , max_abs_li, max_it)
-        use INCA_ERROR, only : NOTBREMSE
         use LOADBALANCER_PARTITION
         use LOADBALANCER
         implicit none
@@ -33,9 +32,7 @@
           this% lb_info % partition = "PARTITION_ZOLTAN"
 #endif
         else
-         call NOTBREMSE( __FILE__
-     &                 , __LINE__
-     &                 , 'Partition Strategy :'//name//" not available")
+          error stop "Partition Strategy :"//name//" not available"
         end if
 
       end subroutine

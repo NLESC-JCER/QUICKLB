@@ -12,6 +12,7 @@
       use LOADBALANCER_DEBUG, only : ASSERT
       use mpi_f08
       use iso_fortran_env, only : int32,real32
+      use iso_c_binding, only : c_f_pointer, c_ptr, c_loc
 
       integer(int32)                      :: zolt_int_pointer_size = 0
       logical                             :: zoltan_initialized =.false.
@@ -62,8 +63,6 @@
      &                                    , points_sent, cum_time
      &                                    , imported_time
      &                                    , avg_time )
-        use INCA_PARALLEL, only : mpi_status_size, mpi_comm_inca
-        use INCA_PARALLEL, only : whoami_g => whoami
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
         type(MPI_COMM), intent(in)              :: comm
@@ -253,7 +252,6 @@
 
       subroutine PARTITION_SORT_SETUP ( this, cum_time, avg_time
      &                                , cur_li, points_left)
-        use INCA_PARALLEL, only : mpi_comm_inca, mpi_nnode, whoami
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
         real(4)                                :: local_time(1)
@@ -356,8 +354,6 @@
       end subroutine
 
       subroutine PARTITION_SORT ( this)
-        use XTRACE
-        use INCA_PARALLEL, only : mpi_comm_inca, mpi_nnode, whoami
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
         real(4)                                 :: avg_time(1)
@@ -370,7 +366,6 @@
         integer, allocatable                    :: local_ids_temp(:)
         type(MPI_COMM)                          :: comm_inca
 
-      call XTRACE_REGION_BEGIN                   ('LB_PART_SORT')
 
         comm_inca %MPI_VAL = mpi_comm_inca
 
@@ -403,12 +398,9 @@
         call this%REALLOCATE_BUFFERS()
         call this%CREATE_COMMUNICATION()
 
-      call XTRACE_REGION_END                            ('LB_PART_SORT')
       end subroutine
 
       subroutine PARTITION_SORT2 ( this)
-        use XTRACE
-        use INCA_PARALLEL, only : mpi_comm_inca, mpi_nnode, whoami
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
         real(4)                                 :: avg_time(1)
@@ -469,8 +461,6 @@
       end subroutine
 
       subroutine PARTITION_GREEDY ( this )
-        use XTRACE
-        use INCA_PARALLEL, only : mpi_comm_inca, mpi_nnode, whoami
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
         real(real32)                            :: local_time(1)
@@ -697,7 +687,6 @@
 #ifdef ENABLE_ZOLTAN
       function ZOLT_NUM_OBJ(indata, ierr) result(n_obj)
         use ZOLTAN
-        use iso_c_binding, only : c_f_pointer, c_ptr, c_loc
         implicit none
         integer(ZOLTAN_INT),dimension(*),intent(in) :: indata
         integer(ZOLTAN_INT), intent(out)       :: ierr
@@ -714,8 +703,6 @@
      &                      , global_ids, local_ids
      &                      , wgt_dim, obj_wgts, ierr)
         use ZOLTAN
-        use INCA_PARALLEL, only:whoami
-        use iso_c_binding, only : c_f_pointer, c_ptr, c_loc
         implicit none
         integer(ZOLTAN_INT), intent(in),dimension(*) :: indata
         integer(ZOLTAN_INT), intent(in)        :: num_gid_entries
@@ -741,7 +728,6 @@
       subroutine ZOLT_HG_SIZE_CS( indata,num_lists, num_pins, format
      &                          , ierr)
         use ZOLTAN
-        use iso_c_binding, only : c_f_pointer, c_ptr, c_loc
         implicit none
         integer(ZOLTAN_INT), intent(in),dimension(*) :: indata
         integer(Zoltan_INT), intent(out)       :: num_lists
@@ -762,7 +748,6 @@
      &                     , num_pins, format, vtxedge_GID
      &                     , vtxedge_ptr, pin_GID, ierr)
         use ZOLTAN
-        use iso_c_binding, only : c_f_pointer, c_ptr, c_loc
         implicit none
         integer(ZOLTAN_INT), INTENT(IN),dimension(*) :: indata
         integer(ZOLTAN_INT), intent(in)        :: num_gid_entries
@@ -796,10 +781,6 @@
      &                   , ZOLTAN_SET_FN, ZOLTAN_OBJ_LIST_FN_TYPE
      &                   , ZOLTAN_HG_CS_FN_TYPE, ZOLTAN_OK
      &                   , ZOLTAN_INITIALIZE, ZOLTAN_DESTROY
-        use XTRACE
-        use INCA_PARALLEL, only : mpi_comm_inca, whoami, mpi_err
-        use mpi          , only : MPI_BARRIER
-        use iso_c_binding, only : c_f_pointer, c_ptr, c_loc
         implicit none
         class(t_loadbalancer), intent(inout),pointer   :: this
         integer(ZOLTAN_INT)                    :: error

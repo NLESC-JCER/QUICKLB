@@ -21,9 +21,4 @@
         BYTE, pointer,contiguous, dimension(:) :: p
       end type
 
-
-
-
-
       end module LOADBALANCER_COMMUNICATION
-
