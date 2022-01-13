@@ -1,18 +1,19 @@
       module LOADBALANCER_COMMUNICATION
+      use iso_fortran_env
       type t_lb_comm_entry
-        integer                                  :: proc
-        integer                                  :: length
-        integer                                  :: data_buf_start
-        integer                                  :: data_buf_end
+        integer(int32)                           :: proc
+        integer(int32)                           :: length
+        integer(int32)                           :: data_buf_start
+        integer(int32)                           :: data_buf_end
 !---- These entries are for communication the other way around
-        integer                                  :: result_buf_start
-        integer                                  :: result_buf_end
-      end type
+        integer(int32)                           :: result_buf_start
+        integer(int32)                           :: result_buf_end
+      end type        
 
 
       type t_lb_comm
-        integer                                  :: exports_length
-        integer                                  :: imports_length
+        integer(int32)                           :: exports_length
+        integer(int32)                           :: imports_length
         type(t_lb_comm_entry), allocatable       :: exports(:)
         type(t_lb_comm_entry), allocatable       :: imports(:)
       end type

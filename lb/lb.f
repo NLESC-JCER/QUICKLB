@@ -12,6 +12,7 @@
       use LOADBALANCER_DEBUG, only : ASSERT
       use LOADBALANCER_COMMUNICATION
       use MPI_F08
+      use iso_fortran_env
 #ifdef ENABLE_ZOLTAN
       use ZOLTAN, only                 : ZOLTAN_STRUCT
 #endif
@@ -34,33 +35,33 @@
 !---- Loadbalancer, should be created through LOADBALANCER_CREATE
       type t_loadbalancer
 !---- Info
-        integer                                  :: mpi_rank
+        integer(int32)                           :: mpi_rank
         type(MPI_COMM)                           :: comm
-        integer                                  :: mpi_nnode
+        integer(int32)                           :: mpi_nnode
         logical                                  :: lb_log
         logical                                  :: lb_log_detailed
 
 !---- Parameters
-        integer                                  :: block_npoints
-        integer                                  :: data_block_bytes
-        integer                                  :: result_block_bytes
+        integer(int32)                           :: block_npoints
+        integer(int32)                           :: data_block_bytes
+        integer(int32)                           :: result_block_bytes
 !---- Needed for (de)serialization and communication of blocks
-        integer                                  :: export_num_ids
-        integer, allocatable                     :: export_ids(:)
+        integer(int32)                           :: export_num_ids
+        integer(int64), allocatable              :: export_ids(:)
 !---- Ids should be grouped together such that we can neatly subdivide
 !---- and send buffered information to our neighbours
-        integer, allocatable                     :: export_proc_ids(:)
+        integer(int32), allocatable              :: export_proc_ids(:)
         BYTE, pointer, contiguous                :: data_send_buffer(:)
      &      => null()
         BYTE, pointer, contiguous                ::result_send_buffer(:)
      &      => null()
 
-        integer                                  :: import_num_ids
-        integer, allocatable                     :: import_ids(:)
-        integer, allocatable                     :: import_proc_ids(:)
+        integer(int32)                           :: import_num_ids
+        integer(int64), allocatable              :: import_ids(:)
+        integer(int32), allocatable              :: import_proc_ids(:)
 
-        integer                                  :: local_num_ids
-        integer, allocatable                     :: local_ids(:)
+        integer(int32)                           :: local_num_ids
+        integer(int64), allocatable              :: local_ids(:)
 
         BYTE, pointer, contiguous              :: data_receive_buffer(:)
      &      => null()
@@ -69,21 +70,21 @@
 
 !---- Administration for local blocks and weights.
 !---- Needed for evaluation
-        integer                                  :: nblocks
-        integer                                  :: total_nblocks
-        integer                                  :: offset
+        integer(int32)                           :: nblocks
+        integer(int64)                           :: total_nblocks
+        integer(int64)                           :: offset
 
 !---- which blocks we can find on which processor?
-        integer, allocatable                     :: vtxdist(:)
+        integer(int32), allocatable              :: vtxdist(:)
 !---- How many compute nodes do we use?
-        integer                                  :: pc_nodes = 0
+        integer(int32)                           :: pc_nodes = 0
 !---- Which node is ours?
-        integer                                  :: pc_node_id = 0
+        integer(int32)                           :: pc_node_id = 0
 !---- What is its entry in vxtdist?
-        integer                                  :: pc_vtxdist_id = 0
+        integer(int32)                           :: pc_vtxdist_id = 0
 !---- Real(4) is used so we can use MPI_FLOAT
-        real(4), allocatable                     :: weights(:)
-        real(4), allocatable                     :: weights_prev(:)
+        real(real32), allocatable                :: weights(:)
+        real(real32), allocatable                :: weights_prev(:)
 
 !---- Communications structure for fast communication
         type(t_lb_comm)                          :: communication
@@ -108,9 +109,9 @@
 
 
 !---- Information for the partitioning algorithm
-        real                                   :: max_rel_li = .0! max load imbalance
-        real                                   :: max_abs_li = .0! max load imbalance
-        integer                                :: max_it = 512  ! max iterations
+        real(real32)                           :: max_rel_li = .0! max load imbalance
+        real(real32)                           :: max_abs_li = .0! max load imbalance
+        integer(int32)                         :: max_it = 512  ! max iterations
 
 !----
 !     User defined functions that perform the serialization and
@@ -155,12 +156,13 @@
      &                                    , serialize_num_ids
      &                                    , serialize_ids
      &                                    , buffer )
+          use iso_fortran_env
           import :: t_loadbalancer
           implicit none
-          class(t_loadbalancer), intent(inout)     :: this
-          integer, intent(in)                     :: block_bytes
-          integer, intent(in)                     :: serialize_num_ids
-          integer, intent(in)                     :: serialize_ids(:)
+          class(t_loadbalancer), intent(inout)    :: this
+          integer(int32), intent(in)              :: block_bytes
+          integer(int32), intent(in)              :: serialize_num_ids
+          integer(int64), intent(in)              :: serialize_ids(:)
 !---- This cannot be intent out because the thermodynamics does not actually
 !---- fill the buffer via its argument, but uses other pointers that point to it
           BYTE, pointer, intent(inout)            :: buffer (:)
@@ -170,13 +172,14 @@
      &                                      , deserialize_num_ids
      &                                      , deserialize_ids
      &                                      , buffer )
+          use iso_fortran_env
           import :: t_loadbalancer
           implicit none
-          class(t_loadbalancer), intent(inout)     :: this
-          integer, intent(in)                    :: block_bytes
-          integer, intent(in)                    :: deserialize_num_ids
-          integer, intent(in)                    :: deserialize_ids(:)
-          BYTE, pointer, intent(inout)           :: buffer (:)
+          class(t_loadbalancer), intent(inout)    :: this
+          integer(int32), intent(in)              :: block_bytes
+          integer(int32), intent(in)              :: deserialize_num_ids
+          integer(int64), intent(in)              :: deserialize_ids(:)
+          BYTE, pointer, intent(inout)            :: buffer (:)
         end subroutine LOADBALANCER_DESERIALIZE
 
         subroutine LOADBALANCER_PARTITION ( this )
@@ -226,9 +229,10 @@
       subroutine LOADBALANCER_CREATE_COMMUNICATION ( this )
         implicit none
         class (t_loadbalancer)                        :: this
-        integer                                       :: n, nn, proc
-        integer                                       :: temp1, temp2
-        integer                                       :: nn_prev
+        integer(int32)                                :: n, nn, proc
+        integer(int32)                                :: temp1
+        integer(int64)                                :: temp2
+        integer(int32)                                :: nn_prev
         proc = -1
 
         associate (comm => this%communication)
@@ -252,9 +256,9 @@
             if( this%export_proc_ids(nn) == this%export_proc_ids(nn+1))
      &          then
               if( this%export_ids(nn) > this%export_ids(nn+1) )then
-                temp1 = this%export_ids(nn)
+                temp2 = this%export_ids(nn)
                 this%export_ids(nn) = this%export_ids(nn+1)
-                this%export_ids(nn+1) = temp1
+                this%export_ids(nn+1) = temp2
               end if
             end if
           end do
@@ -273,9 +277,9 @@
             if( this%import_proc_ids(nn) == this%import_proc_ids(nn+1))
      &          then
               if( this%import_ids(nn) > this%import_ids(nn+1) )then
-                temp1 = this%import_ids(nn)
+                temp2 = this%import_ids(nn)
                 this%import_ids(nn) = this%import_ids(nn+1)
-                this%import_ids(nn+1) = temp1
+                this%import_ids(nn+1) = temp2
               end if
             end if
           end do
@@ -382,10 +386,10 @@
         use iso_c_binding, only : c_size_t
         implicit none
         class(t_loadbalancer)                   :: loadbalancer
-        integer                                 :: data_block_bytes
-        integer                                 :: result_block_bytes
-        integer                                 :: nblocks
-        integer                                 :: block_npoints
+        integer(int32)                          :: data_block_bytes
+        integer(int32)                          :: result_block_bytes
+        integer(int32)                          :: nblocks
+        integer(int32)                          :: block_npoints
         type(MPI_COMM)                          :: communicator
 
         loadbalancer%comm = communicator
@@ -425,15 +429,15 @@
       subroutine LOADBALANCER_CALCULATE_GID_OFFSET( this ,nblocks)
         implicit none
         class(t_loadbalancer), intent(inout)      :: this
-        integer, intent(in)                      :: nblocks
-        integer                                  :: i, err
+        integer(int32), intent(in)                :: nblocks
+        integer(int32)                            :: i, err
 
         this%nblocks = nblocks
         allocate(this%vtxdist(this%mpi_nnode+1))
         this%vtxdist(1) = 0
 
-        call MPI_ALLGATHER( nblocks, 1, MPI_INT
-     &                    , this%vtxdist(2:), 1, MPI_INT
+        call MPI_ALLGATHER( nblocks, 1, MPI_INTEGER4
+     &                    , this%vtxdist(2:), 1, MPI_INTEGER4
      &                    , this%comm, err)
 
         call ASSERT(err == MPI_SUCCESS, "Error in mpi allgather")
@@ -474,7 +478,7 @@
      &    send_slices(this%communication%exports_length)
         type(BYTEsliceptr)::
      &     recv_slices(this%communication%imports_length)
-        integer                                   :: err
+        integer(int32)                            :: err
         type(MPI_COMM) :: comm_inca
         comm_inca = this%comm
 
@@ -530,14 +534,14 @@
         implicit none
         class(t_loadbalancer)                     :: this
 
-        integer                                   :: n
+        integer(int32)                            :: n
         type(MPI_REQUEST):: recv_reqs(this%communication%exports_length)
         type(MPI_REQUEST):: send_reqs(this%communication%imports_length)
         type(BYTEsliceptr)::
      &    recv_slices(this%communication%exports_length)
         type(BYTEsliceptr)::
      &    send_slices(this%communication%imports_length)
-        integer                                   :: err
+        integer(int32)                             :: err
         type(MPI_COMM) :: comm_inca
         comm_inca = this%comm
         call this%EXPORT_RESULT( this%block_npoints,

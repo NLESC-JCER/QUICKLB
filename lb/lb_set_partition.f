@@ -1,4 +1,5 @@
       module LOADBALANCER_SET_PARTITION
+      use iso_fortran_env
       contains
 
       subroutine SET_PARTITION_ALGORITHM ( this , name, max_rel_li
@@ -8,9 +9,9 @@
         implicit none
         class(t_loadbalancer), intent(inout)   :: this
         character(len=20), intent(in) :: name
-        real, intent(in) :: max_rel_li
-        real, intent(in) :: max_abs_li
-        integer, intent(in) :: max_it
+        real(real32), intent(in) :: max_rel_li
+        real(real32), intent(in) :: max_abs_li
+        integer(int32), intent(in) :: max_it
 
         this% max_rel_li = max_rel_li
         this% max_abs_li = max_abs_li

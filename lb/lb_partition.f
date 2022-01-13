@@ -11,14 +11,14 @@
       use LOADBALANCER
       use LOADBALANCER_DEBUG, only : ASSERT
       use mpi_f08
-      use iso_fortran_env, only : int32,real32
+      use iso_fortran_env
       use iso_c_binding, only : c_f_pointer, c_ptr, c_loc
 
       private
 
       type(MPI_COMM)                      :: comm_local  = MPI_COMM_NULL
-      integer                             :: whoami_local= -1
-      integer                             :: nnode_local = -1
+      integer(int32)                      :: whoami_local= -1
+      integer(int32)                      :: nnode_local = -1
       type(MPI_GROUP)                     :: group_local =MPI_GROUP_NULL
       type(MPI_GROUP)                     :: group_global=MPI_GROUP_NULL
 
@@ -27,20 +27,19 @@
       logical                             :: zoltan_initialized =.false.
       public :: PARTITION_ZOLTAN
 #endif
-
       public  :: PARTITION_GREEDY, PARTITION_SORT
       public  :: PARTITION_SORT2
 
       contains
 
-      recursive subroutine QUICKSORT(a, b, first, last)
+      pure recursive subroutine QUICKSORT(a, b, first, last)
         implicit none
-        real(4), intent(inout)                   :: a(:)
-        integer, intent(inout)                   :: b(:)
-        integer, intent(in)                      :: first, last
-        integer                                  :: t_i
-        real(4)                                  :: t_r, x
-        integer                                  :: i, j
+        real(real32), intent(inout)              :: a(:)
+        integer(int32), intent(inout)            :: b(:)
+        integer(int32), intent(in)               :: first, last
+        integer(int32)                           :: t_i
+        real(real32)                             :: t_r, x
+        integer(int32)                           :: i, j
 
         x = a((first+last)/2)
         i = first
@@ -74,35 +73,35 @@
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
         type(MPI_COMM), intent(in)              :: comm
-        integer, intent(in)                     :: nnode
-        integer, intent(in)                     :: whoami
-        real(4), intent(in)                     :: cur_li
-        integer, intent(inout)                  :: points_left
-        integer, intent(inout)                  :: points_sent
-        real(4), intent(inout)                  :: cum_time
-        real(4), intent(inout)                  :: imported_time
-        real(4), intent(in)                     :: avg_time
-        integer                                 :: err
-        integer                                 :: n, nn, x
-        integer                                 :: n_p(1), nn_p(1)
-        integer                                 :: points_recv
-        integer, allocatable                    :: import_ids_temp(:)
-        integer, allocatable                    :: import_proc_temp(:)
-        integer                                 :: imported_points
-        integer                                 :: rank
-        integer, allocatable                    :: points_buf(:)
-        real(4), allocatable                    :: weight_buf(:)
-        integer, allocatable                    :: all_rank(:)
-        real(4), allocatable                    :: all_li(:)
-        real(4)                                 :: my_li, partner_li
-        real(4)                                 :: prev_li
+        integer(int32), intent(in)              :: nnode
+        integer(int32), intent(in)              :: whoami
+        real(real32), intent(in)                :: cur_li
+        integer(int32), intent(inout)           :: points_left
+        integer(int32), intent(inout)           :: points_sent
+        real(real32), intent(inout)             :: cum_time
+        real(real32), intent(inout)             :: imported_time
+        real(real32), intent(in)                :: avg_time
+        integer(int32)                          :: err
+        integer(int32)                          :: n, nn, x
+        integer(int32)                          :: n_p(1), nn_p(1)
+        integer(int32)                          :: points_recv
+        integer(int64), allocatable             :: import_ids_temp(:)
+        integer(int32), allocatable             :: import_proc_temp(:)
+        integer(int32)                          :: imported_points
+        integer(int32)                          :: rank
+        integer(int64), allocatable             :: points_buf(:)
+        real(real32), allocatable               :: weight_buf(:)
+        integer(int32), allocatable             :: all_rank(:)
+        real(real32), allocatable               :: all_li(:)
+        real(real32)                            :: my_li, partner_li
+        real(real32)                            :: prev_li
         type(MPI_STATUS)                        :: mpi_stat
-        integer                             :: partner_mpi_rank
-        integer                             :: partner_mpi_rank_g(1)
-        integer                             :: partner_rank
-        real(4)                             :: temp
+        integer(int32)                          :: partner_mpi_rank
+        integer(int32)                          :: partner_mpi_rank_g(1)
+        integer(int32)                          :: partner_rank
+        real(real32)                            :: temp
         logical                             :: communicate
-        real(4)                             :: cur_li_p(1)
+        real(real32)                            :: cur_li_p(1)
 
         imported_points = this%import_num_ids
 
@@ -115,7 +114,7 @@
 
 !---- Communicate our current surplus/deficit to everyone
         cur_li_p = cur_li
-        call MPI_ALLGATHER( cur_li_p,1,MPI_FLOAT,all_li,1,MPI_FLOAT
+        call MPI_ALLGATHER( cur_li_p,1,MPI_REAL4,all_li,1,MPI_REAL4
      &               , comm, err)
 
         prev_li = maxval(all_li)
@@ -185,13 +184,13 @@
           if( my_li > 0 )then
             call MPI_SEND( this%export_ids(points_sent+1
      &                    : this%export_num_ids)
-     &          , points_left, MPI_INT, partner_mpi_rank, 42
+     &          , points_left, MPI_INTEGER8, partner_mpi_rank, 42
      &          , comm, err)
             call MPI_SEND(this%weights(this%local_num_ids+points_sent+1
      &                  : this%nblocks)
-     &          , points_left, MPI_FLOAT, partner_mpi_rank, 43
+     &          , points_left, MPI_REAL4, partner_mpi_rank, 43
      &          , comm, err)
-            call MPI_RECV(nn_p, 1, MPI_INT, partner_mpi_rank, 44
+            call MPI_RECV(nn_p, 1, MPI_INTEGER4, partner_mpi_rank, 44
      &          , comm, MPI_STATUS_IGNORE, err)
             nn = nn_p(1)
 !---- Update import/export arrays
@@ -205,13 +204,13 @@
           else
             call MPI_PROBE(partner_mpi_rank, 42, comm
      &          , mpi_stat, err)
-            call MPI_GET_COUNT(mpi_stat, MPI_INT, points_recv, err)
+            call MPI_GET_COUNT(mpi_stat, MPI_INTEGER8, points_recv, err)
             allocate(points_buf(points_recv))
             allocate(weight_buf(points_recv))
-            call MPI_RECV(points_buf, points_recv, MPI_INT
+            call MPI_RECV(points_buf, points_recv, MPI_INTEGER8
      &          , partner_mpi_rank
      &          , 42, comm, MPI_STATUS_IGNORE, err)
-            call MPI_RECV(weight_buf, points_recv, MPI_FLOAT
+            call MPI_RECV(weight_buf, points_recv, MPI_REAL4
      &          , partner_mpi_rank
      &          , 43, comm, MPI_STATUS_IGNORE, err)
 !---- Check if we have room
@@ -243,7 +242,7 @@
             deallocate(points_buf)
             deallocate(weight_buf)
             n_p = n
-            call MPI_SEND(n_p, 1, MPI_INT, partner_mpi_rank, 44
+            call MPI_SEND(n_p, 1, MPI_INTEGER4, partner_mpi_rank, 44
      &          , comm, err)
           end if
         end do
@@ -259,12 +258,12 @@
      &                                , cur_li, points_left)
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
-        real(4)                                :: local_time(1)
-        real(4), intent(out)                    :: avg_time(1)
-        real(4), intent(out)                    :: cur_li(1)
-        real(4), intent(out)                    :: cum_time
-        integer, intent(out)                    :: points_left
-        integer                                 :: n, nn, err
+        real(real32)                            :: local_time(1)
+        real(real32), intent(out)               :: avg_time(1)
+        real(real32), intent(out)               :: cur_li(1)
+        real(real32), intent(out)               :: cum_time
+        integer(int32), intent(out)             :: points_left
+        integer(int32)                          :: n, nn, err
         cum_time = 0.
 
 !---- Deallocated what we are going to allocate
@@ -278,7 +277,7 @@
 
 !---- First get the total time of local blocks
         local_time(1) = sum(this % weights)
-        call MPI_ALLREDUCE(local_time, avg_time, 1, MPI_FLOAT, MPI_SUM
+        call MPI_ALLREDUCE(local_time, avg_time, 1, MPI_REAL4, MPI_SUM
      &                    , this%comm, err)
 #ifdef DEBUG_CHECKS
         call ASSERT(err == MPI_SUCCESS
@@ -358,14 +357,14 @@
       subroutine PARTITION_SORT ( this)
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
-        real(4)                                 :: avg_time(1)
-        real(4)                                 :: cur_li(1)
-        real(4)                                 :: cum_time
-        real(4)                                :: imported_time
-        integer                                 :: points_left
-        integer                                 :: points_sent
-        integer                                 :: n 
-        integer, allocatable                    :: local_ids_temp(:)
+        real(real32)                            :: avg_time(1)
+        real(real32)                            :: cur_li(1)
+        real(real32)                            :: cum_time
+        real(real32)                            :: imported_time
+        integer(int32)                          :: points_left
+        integer(int32)                          :: points_sent
+        integer(int32)                          :: n 
+        integer(int64), allocatable             :: local_ids_temp(:)
 
         call PARTITION_SORT_SETUP( this,  cum_time, avg_time, cur_li
      &                           , points_left)
@@ -402,14 +401,14 @@
       subroutine PARTITION_SORT2 ( this)
         implicit none
         class(t_loadbalancer), intent(inout)    :: this
-        real(4)                                 :: avg_time(1)
-        real(4)                                 :: cur_li(1)
-        real(4)                                 :: cum_time
-        real(4)                                 :: imported_time
-        integer                                 :: points_left
-        integer                                 :: points_sent
-        integer                                 :: n
-        integer, allocatable                    :: local_ids_temp(:)
+        real(real32)                            :: avg_time(1)
+        real(real32)                            :: cur_li(1)
+        real(real32)                            :: cum_time
+        real(real32)                            :: imported_time
+        integer(int32)                          :: points_left
+        integer(int32)                          :: points_sent
+        integer(int32)                          :: n
+        integer(int64), allocatable             :: local_ids_temp(:)
 
         call PARTITION_SORT_SETUP( this,  cum_time, avg_time, cur_li
      &                           , points_left )
@@ -462,22 +461,22 @@
         real(real32)                            :: cur_li(1)
         real(real32)                            :: prev_li
         real(real32)                            :: temp
-        integer                                 :: err
+        integer(int32)                          :: err
         real(real32)                            :: cum_time
-        integer                                 :: n
-        integer                                 :: nn, next_proc, x
-        integer                                 :: nn_p(1),n_p(1)
-        integer                                 :: prev_proc
-        integer                                 :: points_left
-        integer                                 :: points_send
-        integer                                 :: points_recv
-        integer                                 :: imported_points
-        integer, allocatable                    :: local_ids_temp(:)
-        integer, allocatable                    :: import_ids_temp(:)
-        integer, allocatable                    :: import_proc_temp(:)
+        integer(int32)                          :: n
+        integer(int32)                          :: nn, next_proc, x
+        integer(int32)                          :: nn_p(1),n_p(1)
+        integer(int32)                          :: prev_proc
+        integer(int32)                          :: points_left
+        integer(int32)                          :: points_send
+        integer(int32)                          :: points_recv
+        integer(int32)                          :: imported_points
+        integer(int64), allocatable             :: local_ids_temp(:)
+        integer(int64), allocatable             :: import_ids_temp(:)
+        integer(int32), allocatable             :: import_proc_temp(:)
         logical                                 :: finished
         type(MPI_REQUEST)                       :: send_req(2)
-        integer, allocatable                    :: points_buf(:)
+        integer(int64), allocatable             :: points_buf(:)
         real(real32), allocatable               :: weight_buf(:)
         real(real32), allocatable               :: all_li(:)
         type(MPI_STATUS)                        :: mpi_stat
@@ -497,7 +496,7 @@
 
 !---- First get the total time of local blocks
         local_time(1) = sum(this % weights)
-        call MPI_ALLREDUCE( local_time, avg_time, 1, MPI_FLOAT, MPI_SUM
+        call MPI_ALLREDUCE( local_time, avg_time, 1, MPI_REAL4, MPI_SUM
      &                    , this%comm, err)
 #ifdef DEBUG_CHECKS
         call ASSERT(err == MPI_SUCCESS
@@ -515,7 +514,7 @@
      &         / avg_time(1)
 
 !---- Communicate our current surplus/deficit to everyone
-        call MPI_ALLGATHER( cur_li,1,MPI_FLOAT,all_li,1,MPI_FLOAT
+        call MPI_ALLGATHER( cur_li,1,MPI_REAL4,all_li,1,MPI_REAL4
      &               , this%comm, err)
 
         prev_li = maxval(all_li)
@@ -580,21 +579,21 @@
           associate(buf => this%export_ids(points_send+1
      &                   : this%export_num_ids))
           call MPI_ISEND( buf
-     &        , points_left, MPI_INT, next_proc, 42
+     &        , points_left, MPI_INTEGER8, next_proc, 42
      &        , this%comm, send_req(1), err)
          associate(buf2 => this%weights(this%local_num_ids+points_send+1
      &                  : this%nblocks))
 
           call MPI_ISEND(buf2
-     &        , points_left, MPI_FLOAT, next_proc, 43
+     &        , points_left, MPI_REAL4, next_proc, 43
      &        , this%comm, send_req(2), err)
           call MPI_PROBE(prev_proc, 42, this%comm, mpi_stat, err)
-          call MPI_GET_COUNT(mpi_stat, MPI_INT, points_recv, err)
+          call MPI_GET_COUNT(mpi_stat, MPI_INTEGER8, points_recv, err)
           allocate(points_buf(points_recv))
           allocate(weight_buf(points_recv))
-          call MPI_RECV(points_buf, points_recv, MPI_INT, prev_proc
+          call MPI_RECV(points_buf, points_recv, MPI_INTEGER8, prev_proc
      &                 , 42, this%comm, MPI_STATUS_IGNORE, err)
-          call MPI_RECV(weight_buf, points_recv, MPI_FLOAT, prev_proc
+          call MPI_RECV(weight_buf, points_recv, MPI_REAL4, prev_proc
      &                 , 43, this%comm, MPI_STATUS_IGNORE, err)
           call MPI_WAITALL(2,send_req,MPI_STATUSES_IGNORE, err)
           end associate
@@ -631,9 +630,9 @@
           deallocate(weight_buf)
 
           n_p(1) = n
-          call MPI_ISEND(n_p, 1, MPI_INT, prev_proc, 44
+          call MPI_ISEND(n_p, 1, MPI_INTEGER4, prev_proc, 44
      &        , this%comm, send_req(1), err)
-          call MPI_RECV(nn_p, 1, MPI_INT, next_proc, 44, this%comm
+          call MPI_RECV(nn_p, 1, MPI_INTEGER4, next_proc, 44, this%comm
      &        , MPI_STATUS_IGNORE, err)
           nn = nn_p(1)
           call MPI_WAIT(send_req(1),MPI_STATUS_IGNORE, err)
@@ -700,7 +699,7 @@
         integer(ZOLTAN_INT), intent(in)        :: wgt_dim
         real(ZOLTAN_FLOAT),  intent(out), dimension(*):: obj_wgts
         integer(ZOLTAN_INT), intent(out)       :: ierr
-        integer                                :: n, nn
+        integer(int32)                         :: n, nn
         type(c_ptr)                            :: temp
         type(t_loadbalancer), pointer         :: this
         temp = transfer(indata(1:zolt_int_pointer_size+1), temp)
@@ -746,9 +745,9 @@
         integer(ZOLTAN_INT), intent(out) ,dimension(*)  :: vtxedge_ptr
         integer(ZOLTAN_INT), intent(out)  ,dimension(*) :: pin_GID
         integer(ZOLTAN_INT), intent(out)       :: ierr
-        integer                                :: n
+        integer(int32)                         :: n
         type(c_ptr)                            :: temp
-        type(t_loadbalancer), pointer         :: this
+        type(t_loadbalancer), pointer          :: this
         temp = transfer(indata(1:zolt_int_pointer_size+1), temp)
         call c_f_pointer(temp, this)
 
@@ -774,9 +773,9 @@
         integer(ZOLTAN_INT)                    :: error
         real(ZOLTAN_FLOAT)                     :: version
         integer(ZOLTAN_INT),pointer            :: addr_ints(:)
-        type(c_ptr)                             :: c_addr
+        type(c_ptr)                            :: c_addr
 
-        integer                                :: n,nn,nnn
+        integer(int32)                         :: n,nn,nnn
         logical                                :: changed
         integer(ZOLTAN_INT)                    :: nge, nle
         integer(ZOLTAN_INT)                    :: num_import, num_export

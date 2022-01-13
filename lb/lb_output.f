@@ -1,4 +1,5 @@
       module LOADBALANCER_OUTPUT
+      use iso_fortran_env
 
 !   - formatting
       character (len=24) ,parameter, private
@@ -14,25 +15,25 @@
      &          '=================================================='
 
 !   - Output file handle
-      integer                                    :: fhandle = -1
+      integer(int32)                                   :: fhandle = -1
 
 !   - For comms
       type t_tot_data
-        integer :: id
-        integer :: local_num_ids
-        integer :: export_num_ids
-        integer :: import_num_ids
-        real(4) :: total_weight
-        real(4) :: local_weight
-        real(4) :: export_weight
+        integer(int32):: id
+        integer(int32):: local_num_ids
+        integer(int32):: export_num_ids
+        integer(int32):: import_num_ids
+        real(real32) :: total_weight
+        real(real32) :: local_weight
+        real(real32) :: export_weight
       end type
 
       contains
 
       subroutine OPEN_LOGFILE
         implicit none
-        character(32)                        :: filename
-        integer                              :: err
+        character(len=32)                        :: filename
+        integer(int32)                             :: err
         write(filename,'(A,I2,A)') "loadbalance.info"
         open( newunit=fhandle, file = filename,
      &        action = 'write', iostat = err )
@@ -114,17 +115,17 @@
         use LOADBALANCER, only                : t_loadbalancer
         implicit none
         type(t_loadbalancer)                 :: lb
-        integer                              :: timestep
-        integer                              :: err, n, nn
-        integer                              :: max_block
-        integer                              :: recv_count
-        integer                              :: total_local_size
-        integer, pointer, contiguous         :: buf_int(:)
-        real(4), pointer, contiguous         :: buf_real(:)
+        integer(int32)                       :: timestep
+        integer(int32)                       :: err, n, nn
+        integer(int32)                       :: max_block
+        integer(int32)                       :: recv_count
+        integer(int32)                       :: total_local_size
+        integer(int32), pointer, contiguous  :: buf_int(:)
+        real(real32), pointer, contiguous    :: buf_real(:)
 !---- Root process writes this, receiving per process would require less memory
 !---- But is probably slower
-        type(t_tot_data), pointer,contiguous  :: totals(:)
-        type(t_tot_data)                      :: total_local(1)
+        type(t_tot_data), pointer,contiguous :: totals(:)
+        type(t_tot_data)                     :: total_local(1)
 
 
         if( .not. lb%lb_log )RETURN
@@ -213,9 +214,9 @@
           buf_int(lb%export_ids(n)) = lb%export_proc_ids(n)
         end do
         if( lb%mpi_rank /= 0 )then
-          call MPI_SEND( lb%weights, lb%nblocks, MPI_FLOAT
+          call MPI_SEND( lb%weights, lb%nblocks, MPI_REAL4
      &                 , 0, 32, lb%comm, err)
-          call MPI_SEND( buf_int, lb%nblocks, MPI_INT
+          call MPI_SEND( buf_int, lb%nblocks, MPI_INTEGER4
      &                 , 0, 198, lb%comm, err)
         end if
         if( lb%mpi_rank == 0 )then
@@ -229,9 +230,9 @@
           end do
           do n = 1, lb%mpi_nnode-1
             recv_count = lb%vtxdist(n+2)-lb%vtxdist(n+1)
-            call MPI_RECV( buf_real, recv_count, MPI_FLOAT
+            call MPI_RECV( buf_real, recv_count, MPI_REAL4
      &                   , n, 32, lb%comm, MPI_STATUS_IGNORE, err)
-            call MPI_RECV( buf_int, recv_count, MPI_INT
+            call MPI_RECV( buf_int, recv_count, MPI_INTEGER4
      &                   , n, 198, lb%comm,MPI_STATUS_IGNORE, err)
 !---- Write others
             do nn = 1, recv_count
