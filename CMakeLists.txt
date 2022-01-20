@@ -37,7 +37,8 @@ option(PYTHON_INTERFACE "Build the python interface through f2py")
 if(PYTHON_INTERFACE)
   add_custom_command(TARGET quicklb_static POST_BUILD
                      COMMAND f2py -m quicklb -h quicklb.pyf lb/lb_interface.f
-                     COMMAND f2py -m quicklb -c quicklb.pyf $<TARGET_FILE:quicklb_static> 
+                     COMMAND f2py -m quicklb -c quicklb.pyf 
+                     $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lgfortran
                      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
       )
 endif()
