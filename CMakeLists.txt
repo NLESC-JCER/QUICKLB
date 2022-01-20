@@ -32,5 +32,15 @@ file(GLOB fortran_source "lb/*.f")
 add_library(quicklb SHARED ${fortran_source})
 add_library(quicklb_static STATIC $<TARGET_OBJECTS:quicklb>)
 
+option(PYTHON_INTERFACE "Build the python interface through f2py")
+
+if(PYTHON_INTERFACE)
+  add_custom_command(TARGET quicklb_static POST_BUILD
+                     COMMAND f2py -m quicklb -h quicklb.pyf lb/lb_interface.f
+                     COMMAND f2py -m quicklb -c quicklb.pyf $<TARGET_FILE:quicklb_static> 
+                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      )
+endif()
+
 message(STATUS "Fortran compiler : " ${CMAKE_Fortran_COMPILER})
 message(STATUS "Fortran compiler flags : ${CMAKE_Fortran_FLAGS}")
