@@ -39,7 +39,7 @@ if(PYTHON_INTERFACE)
                      COMMAND f2py --overwrite-signature -m quicklb -h quicklb.pyf 
                      ${CMAKE_SOURCE_DIR}/lb/lb_interface.f
                      COMMAND f2py -m quicklb -c quicklb.pyf
-                     $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lgfortran
+                     $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lmpi -lgfortran
                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
       )
 endif()
