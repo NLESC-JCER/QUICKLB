@@ -10,7 +10,8 @@ set(CMAKE_Fortran_COMPILER ${Fortran_COMPILER})
 project(QUICKLB LANGUAGES Fortran)
 
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -Wall -Wextra \
-    -Wno-compare-reals -ffixed-form -fimplicit-none") # Shared Flags
+    -Wno-compare-reals -ffixed-form -fimplicit-none \
+    -Werror=implicit-interface -ffixed-line-length-none") # Shared Flags
 if (CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fpp") #Preprocessor
 else()
@@ -20,7 +21,8 @@ endif()
 if (CMAKE_BUILD_TYPE MATCHES "DEBUG")
 if (CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Og \
--fbacktrace -ffpe-trap=invalid,zero,overflow")
+-fbacktrace -ffpe-trap=invalid,zero,overflow \
+-fcheck=all")
 endif()
 else()
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O3 -funroll-loops")
@@ -39,6 +41,7 @@ if(PYTHON_INTERFACE)
                      COMMAND f2py --overwrite-signature -m quicklb -h quicklb.pyf 
                      ${CMAKE_SOURCE_DIR}/lb/lb_interface.f
                      COMMAND f2py -m quicklb -c quicklb.pyf
+                     --f2cmap ${CMAKE_SOURCE_DIR}/f2py_f2cmap
                      $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lmpi -lgfortran
                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
       )

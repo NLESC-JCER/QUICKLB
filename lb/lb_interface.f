@@ -26,35 +26,57 @@
       end subroutine
 
 
-      subroutine LOADBALANCER_CREATE ( loadbalancer_
-     &                               , data_block_bytes
-     &                               , result_block_bytes
-     &                               , nblocks
-     &                               , block_npoints
-     &                               , communicator_)
-        use iso_c_binding
+      subroutine CREATE ( loadbalancer_
+     &                  , data_block_bytes
+     &                  , result_block_bytes
+     &                  , nblocks
+     &                  , block_npoints
+     &                  , communicator_)
+        use iso_c_binding 
         use iso_fortran_env
         use mpi_f08
-        use LOADBALANCER, only: LB_CREATE => LOADBALANCER_CREATE
-     &                        , t_loadbalancer
+        use LOADBALANCER, only: t_loadbalancer
         implicit none
-        integer(c_intptr_t),intent(out)         :: loadbalancer_
-        integer(c_int32_t) ,value,intent(in)    :: data_block_bytes
-        integer(c_int32_t) ,value,intent(in)    :: result_block_bytes
-        integer(c_int32_t) ,value,intent(in)    :: nblocks
-        integer(c_int32_t) ,value,intent(in)    :: block_npoints
-        integer(c_int32_t) ,      intent(in)    :: communicator_
+        integer(c_intptr_t),intent(out)        :: loadbalancer_
+        integer(c_int32_t) ,intent(in)         :: data_block_bytes
+        integer(c_int32_t) ,intent(in)         :: result_block_bytes
+        integer(c_int32_t) ,intent(in)         :: nblocks
+        integer(c_int32_t) ,intent(in)         :: block_npoints
+        integer(c_int32_t) ,intent(in)         :: communicator_
 
-        type(t_loadbalancer), pointer           :: loadbalancer
-        type(MPI_comm)                          :: communicator
+        type(t_loadbalancer), pointer          :: loadbalancer
+        type(MPI_comm)                         :: communicator
         communicator%MPI_val = communicator_
 
-        allocate(loadbalancer)
-        call LB_CREATE( loadbalancer
-     &                , data_block_bytes
+
+        allocate(loadbalancer) 
+        call loadbalancer% CREATE( data_block_bytes
      &                , result_block_bytes
      &                , nblocks
      &                , block_npoints
      &                , communicator)
-        loadbalancer_ = loc(loadbalancer)
+        loadbalancer_ = transfer(c_loc(loadbalancer),loadbalancer_)
+
+        write(*,*) loadbalancer_, c_loc(loadbalancer)
       end subroutine
+
+      subroutine SET_IMPORT_EXPORT_ROUTINES( success
+     &                                     , loadbalancer_
+     &                                    ) 
+        use iso_c_binding
+        use iso_fortran_env
+        use LOADBALANCER, only: t_loadbalancer
+        implicit none
+        integer(c_intptr_t), intent(in)        :: loadbalancer_
+        logical            , intent(out)       :: success
+
+        type(t_loadbalancer), pointer          :: loadbalancer
+        type(c_ptr)                            :: loadbalancer_c_ptr
+            
+        loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
+        write(*,*) loadbalancer_, loadbalancer_c_ptr
+        call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
+        write(*,*) loadbalancer%block_npoints
+        
+      end subroutine
+

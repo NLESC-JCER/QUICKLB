@@ -1,0 +1,2 @@
+dict(integer = dict(c_intptr_t="long_long",
+            c_int32_t ="int"))
