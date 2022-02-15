@@ -71,10 +71,9 @@ cf2py   use __user__routines, only: export_data => serialize
 
         type(t_loadbalancer), pointer          :: loadbalancer
         type(c_ptr)                            :: loadbalancer_c_ptr
-c       procedure(serialize)                   :: export_data
         integer*1, allocatable                 :: buffer(:)
         integer(c_int64_t) :: id
-        integer(c_int64_t) :: buffer_size
+        integer(c_int32_t) :: buffer_size
 
         loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
         call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
