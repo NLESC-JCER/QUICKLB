@@ -11,7 +11,7 @@ project(QUICKLB LANGUAGES Fortran)
 
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -Wall -Wextra \
     -Wno-compare-reals -ffixed-form -fimplicit-none \
-    -Werror=implicit-interface -ffixed-line-length-none") # Shared Flags
+    -ffixed-line-length-none") # Shared Flags
 if (CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fpp") #Preprocessor
 else()
@@ -37,9 +37,22 @@ add_library(quicklb_static STATIC $<TARGET_OBJECTS:quicklb>)
 option(PYTHON_INTERFACE "Build the python interface through f2py")
 
 if(PYTHON_INTERFACE)
-  add_custom_command(TARGET quicklb_static POST_BUILD
-                     COMMAND f2py --overwrite-signature -m quicklb -h quicklb.pyf 
+  add_custom_target( quicklb_python ALL
+                     DEPENDS quicklb_static
+                             ${CMAKE_SOURCE_DIR}/lb/lb_callback.fi 
+                             ${CMAKE_SOURCE_DIR}/f2py_f2cmap
+                     BYPRODUCTS ${CMAKE_BINARY_DIR}/quicklb.cpython*.so
+                     COMMAND f2py --overwrite-signature -m quicklb -h quicklb_x.pyf 
                      ${CMAKE_SOURCE_DIR}/lb/lb_interface.f
+                     ${CMAKE_SOURCE_DIR}/lb/test.f
+
+                     COMMAND echo "python module __user__routines" > quicklb.pyf
+                     COMMAND cat ${CMAKE_SOURCE_DIR}/lb/lb_callback.fi >> quicklb.pyf
+                     COMMAND echo "end python module __user__routines" >> quicklb.pyf
+                     COMMAND cat ${CMAKE_BINARY_DIR}/quicklb_x.pyf >> quicklb.pyf
+
+                     COMMAND sed -i "'s/dimension(:) :: buffer/dimension(buffer_size) :: buffer/g'" quicklb.pyf
+
                      COMMAND f2py -m quicklb -c quicklb.pyf
                      --f2cmap ${CMAKE_SOURCE_DIR}/f2py_f2cmap
                      $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lmpi -lgfortran
