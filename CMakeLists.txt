@@ -42,17 +42,9 @@ if(PYTHON_INTERFACE)
                              ${CMAKE_SOURCE_DIR}/lb/lb_callback.fi 
                              ${CMAKE_SOURCE_DIR}/f2py_f2cmap
                      BYPRODUCTS ${CMAKE_BINARY_DIR}/quicklb.cpython*.so
-                     COMMAND f2py --overwrite-signature -m quicklb -h quicklb_x.pyf 
+                     COMMAND f2py --overwrite-signature -m quicklb -h quicklb.pyf 
                      ${CMAKE_SOURCE_DIR}/lb/lb_interface.f
                      ${CMAKE_SOURCE_DIR}/lb/test.f
-
-                     COMMAND echo "python module __user__routines" > quicklb.pyf
-                     COMMAND cat ${CMAKE_SOURCE_DIR}/lb/lb_callback.fi >> quicklb.pyf
-                     COMMAND echo "end python module __user__routines" >> quicklb.pyf
-                     COMMAND cat ${CMAKE_BINARY_DIR}/quicklb_x.pyf >> quicklb.pyf
-
-                     COMMAND sed -i "'s/dimension(:) :: buffer/dimension(buffer_size) :: buffer/g'" quicklb.pyf
-
                      COMMAND f2py -m quicklb -c quicklb.pyf
                      --f2cmap ${CMAKE_SOURCE_DIR}/f2py_f2cmap
                      $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lmpi -lgfortran

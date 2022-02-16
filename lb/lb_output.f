@@ -107,15 +107,15 @@
           write(fhandle,'(A,I20)') "Total Number of blocks = "
      &        , lb%total_nblocks
 
+          flush(fhandle)
        end if
       end subroutine
-      subroutine OUTPUT_PARTITIONING(lb, timestep)
+      subroutine OUTPUT_PARTITIONING(lb)
         use LOADBALANCER_DEBUG, only          : ASSERT
         use MPI_F08
         use LOADBALANCER, only                : t_loadbalancer
         implicit none
         type(t_loadbalancer)                 :: lb
-        integer(int32)                       :: timestep
         integer(int32)                       :: err, n, nn
         integer(int32)                       :: max_block
         integer(int32)                       :: recv_count
@@ -139,8 +139,7 @@
             call OPEN_LOGFILE
           end if
           write(fhandle,'(A)') ""
-          write(fhandle,'("Loadbalancer : ",A
-     &,"Partitioning on timestep:",I20)') lb%lb_info%name, timestep
+          write(fhandle,'("Loadbalancer : ",A)') lb%lb_info%name
           write(fhandle,'(A)')  fl
         end if
 
@@ -198,7 +197,9 @@
           end do
           write(fhandle,'(A)')  fl
           deallocate(totals)
+          flush(fhandle)
         end if
+
 
         if( .not. lb%lb_log_detailed )RETURN
         max_block = 0
@@ -241,11 +242,13 @@
             end do
           end do
           deallocate(buf_real)
+          flush(fhandle)
         end if
 
         call MPI_BARRIER(lb%comm, err)
 
         deallocate(buf_int)
+
       end subroutine
 
       end module

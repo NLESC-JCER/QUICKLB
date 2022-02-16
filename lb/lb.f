@@ -38,8 +38,9 @@
         integer(int32)                           :: mpi_rank
         type(MPI_COMM)                           :: comm
         integer(int32)                           :: mpi_nnode
-        logical                                  :: lb_log
+        logical                                  :: lb_log = .true.
         logical                                  :: lb_log_detailed
+     &                                              = .false.
 
 !---- Parameters
         integer(int32)                           :: block_npoints
@@ -116,17 +117,17 @@
 !----
 !     User defined functions that perform the serialization and
 !     Deserialization.
-        procedure(LOADBALANCER_SERIALIZE)
-     &      , pointer, pass                    :: EXPORT_DATA
+        procedure(SERIALIZE)
+     &      , pointer, nopass                  :: EXPORT_DATA
      &      => null()
-        procedure(LOADBALANCER_DESERIALIZE)
-     &      , pointer, pass                    :: IMPORT_DATA
+        procedure(DESERIALIZE)
+     &      , pointer, nopass                  :: IMPORT_DATA
      &      => null()
-        procedure(LOADBALANCER_SERIALIZE)
-     &      , pointer, pass                    :: EXPORT_RESULT
+        procedure(SERIALIZE)
+     &      , pointer, nopass                  :: EXPORT_RESULT
      &      => null()
-        procedure(LOADBALANCER_DESERIALIZE)
-     &      , pointer, pass                    :: IMPORT_RESULT
+        procedure(DESERIALIZE)
+     &      , pointer, nopass                  :: IMPORT_RESULT
      &      => null()
 !---- Partition functions should be exchangeable
         procedure(LOADBALANCER_PARTITION)
@@ -150,38 +151,8 @@
 
       end type
 
+#include "lb_callback.fi"
       interface
-        subroutine LOADBALANCER_SERIALIZE ( this
-     &                                    , block_bytes
-     &                                    , serialize_num_ids
-     &                                    , serialize_ids
-     &                                    , buffer )
-          use iso_fortran_env
-          import :: t_loadbalancer
-          implicit none
-          class(t_loadbalancer), intent(inout)    :: this
-          integer(int32), intent(in)              :: block_bytes
-          integer(int32), intent(in)              :: serialize_num_ids
-          integer(int64), intent(in)              :: serialize_ids(:)
-!---- This cannot be intent out because the thermodynamics does not actually
-!---- fill the buffer via its argument, but uses other pointers that point to it
-          BYTE, pointer, intent(inout)            :: buffer (:)
-        end subroutine LOADBALANCER_SERIALIZE
-        subroutine LOADBALANCER_DESERIALIZE ( this
-     &                                      , block_bytes
-     &                                      , deserialize_num_ids
-     &                                      , deserialize_ids
-     &                                      , buffer )
-          use iso_fortran_env
-          import :: t_loadbalancer
-          implicit none
-          class(t_loadbalancer), intent(inout)    :: this
-          integer(int32), intent(in)              :: block_bytes
-          integer(int32), intent(in)              :: deserialize_num_ids
-          integer(int64), intent(in)              :: deserialize_ids(:)
-          BYTE, pointer, intent(inout)            :: buffer (:)
-        end subroutine LOADBALANCER_DESERIALIZE
-
         subroutine LOADBALANCER_PARTITION ( this )
           import :: t_loadbalancer
           implicit none
@@ -457,10 +428,10 @@
      &                                      , import_result )
         implicit none
         class(t_loadbalancer)                    :: this
-        procedure(LOADBALANCER_SERIALIZE)        :: export_data
-        procedure(LOADBALANCER_DESERIALIZE)      :: import_data
-        procedure(LOADBALANCER_SERIALIZE)        :: export_result
-        procedure(LOADBALANCER_DESERIALIZE)      :: import_result
+        procedure(SERIALIZE)        :: export_data
+        procedure(DESERIALIZE)      :: import_data
+        procedure(SERIALIZE)        :: export_result
+        procedure(DESERIALIZE)      :: import_result
 
         this% EXPORT_DATA => export_data
         this% IMPORT_DATA => import_data
@@ -482,12 +453,13 @@
         type(MPI_COMM) :: comm_inca
         comm_inca = this%comm
 
+        do n = 1, this%export_num_ids
+          call this% export_data( this%data_send_buffer(
+     &          (n-1)*this% data_block_bytes+1:n*this% data_block_bytes)
+     &                          , this%export_ids(n) 
+     &                          , this% data_block_bytes)
 
-        call this%EXPORT_DATA( this%block_npoints,
-     &                         this%export_num_ids,
-     &                         this%export_ids,
-     &                         this%data_send_buffer )
-
+        end do
 
         associate ( comm => this% communication)
         ! MPI SEND
@@ -518,10 +490,13 @@
         call MPI_WAITALL( this%communication%imports_length
      &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
 
-        call this%IMPORT_DATA( this%block_npoints
-     &                       , this%import_num_ids
-     &                       , this%import_ids
-     &                       , this%data_receive_buffer )
+        do n = 1, this%export_num_ids
+          call this% import_data( this%data_receive_buffer(
+     &          (n-1)*this% data_block_bytes+1:n*this% data_block_bytes)
+     &                          , this%export_ids(n) 
+     &                          , this% data_block_bytes)
+
+        end do
 
         call MPI_WAITALL( this%communication%exports_length
      &                  , send_reqs, MPI_STATUSES_IGNORE, err)
@@ -544,10 +519,15 @@
         integer(int32)                             :: err
         type(MPI_COMM) :: comm_inca
         comm_inca = this%comm
-        call this%EXPORT_RESULT( this%block_npoints,
-     &                           this%import_num_ids,
-     &                           this%import_ids,
-     &                           this%result_send_buffer )
+
+        do n = 1, this%import_num_ids
+          call this% export_result( this%result_send_buffer(
+     &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
+     &                          , this%import_ids(n) 
+     &                          , this% result_block_bytes)
+
+        end do
+
         associate ( comm => this% communication)
         ! MPI SEND
         do n = 1, comm%imports_length
@@ -556,7 +536,7 @@
      &                                : comm%imports(n)%result_buf_end)
           call MPI_ISEND(
      &          send_slices(n)%p
-     &        , this% data_block_bytes*comm%imports(n)%length
+     &        , this% result_block_bytes*comm%imports(n)%length
      &        , MPI_BYTE
      &        , comm%imports(n)%proc, 4242
      &        , comm_inca, send_reqs(n), err)
@@ -565,10 +545,10 @@
         do n = 1, comm%exports_length
           recv_slices(n)%p => this%result_receive_buffer(
      &                                  comm%exports(n)%result_buf_start
-     &                                : comm%exports(n)%data_buf_end)
+     &                                : comm%exports(n)%result_buf_end)
           call MPI_IRECV(
      &          recv_slices(n)%p
-     &        , this% data_block_bytes*comm%exports(n)%length
+     &        , this% result_block_bytes*comm%exports(n)%length
      &        , MPI_BYTE
      &        , comm%exports(n)%proc, 4242
      &        , comm_inca, recv_reqs(n), err)
@@ -577,10 +557,13 @@
         call MPI_WAITALL( this%communication%exports_length
      &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
 
-        call this%IMPORT_RESULT( this%block_npoints
-     &                         , this%import_num_ids
-     &                         , this%import_ids 
-     &                         , this%data_receive_buffer )
+        do n = 1, this%import_num_ids
+          call this% import_result( this%result_receive_buffer(
+     &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
+     &                          , this%import_ids(n) 
+     &                          , this% result_block_bytes)
+
+        end do
 
         call MPI_WAITALL( this%communication%imports_length
      &                  , send_reqs, MPI_STATUSES_IGNORE, err)
