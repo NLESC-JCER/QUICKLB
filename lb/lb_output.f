@@ -106,6 +106,10 @@
 !---- Static info
           write(fhandle,'(A,I20)') "Total Number of blocks = "
      &        , lb%total_nblocks
+          write(fhandle,'(A,I20)') "Data block size (bytes)   = "
+     &        , lb%data_block_bytes
+          write(fhandle,'(A,I20)') "Result block size (bytes) = "
+     &        , lb%result_block_bytes
 
           flush(fhandle)
        end if

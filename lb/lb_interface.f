@@ -29,7 +29,6 @@
      &                  , data_block_bytes
      &                  , result_block_bytes
      &                  , nblocks
-     &                  , block_npoints
      &                  , communicator_)
         use iso_c_binding 
         use iso_fortran_env
@@ -40,7 +39,6 @@
         integer(c_int32_t) ,intent(in)         :: data_block_bytes
         integer(c_int32_t) ,intent(in)         :: result_block_bytes
         integer(c_int32_t) ,intent(in)         :: nblocks
-        integer(c_int32_t) ,intent(in)         :: block_npoints
         integer(c_int32_t) ,intent(in)         :: communicator_
 
         type(t_loadbalancer), pointer          :: loadbalancer
@@ -52,42 +50,8 @@
         call loadbalancer% CREATE( data_block_bytes
      &                , result_block_bytes
      &                , nblocks
-     &                , block_npoints
      &                , communicator)
         loadbalancer_ = transfer(c_loc(loadbalancer),loadbalancer_)
-      end subroutine
-
-      subroutine SET_EXPORT_IMPORT_ROUTINES( loadbalancer_
-     &                                     , export_data
-     &                                     , import_data
-     &                                     , export_result
-     &                                     , import_result) 
-        use iso_c_binding
-        use iso_fortran_env
-        use LOADBALANCER, only: t_loadbalancer
-        implicit none
-        integer(c_intptr_t), intent(in)        :: loadbalancer_
-        type(t_loadbalancer), pointer          :: loadbalancer
-        type(c_ptr)                            :: loadbalancer_c_ptr
-#include "lb_callback.fi"
-        procedure(serialize)                   :: export_data
-        procedure(deserialize)                 :: import_data
-        procedure(serialize)                   :: export_result
-        procedure(deserialize)                 :: import_result
-cf2py   integer(c_int32_t) :: buffer_size
-cf2py   integer*1, allocatable, dimension(buffer_size) :: buffer
-cf2py   integer(c_int64_t) :: id
-cf2py   call export_data(buffer, id, buffer_size)
-cf2py   call import_data(buffer, id, buffer_size)
-cf2py   call export_result(buffer, id, buffer_size)
-cf2py   call import_result(buffer, id, buffer_size)
-
-        loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
-        call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
-        call loadbalancer% SET_EXPORT_IMPORT_ROUTINES(export_data
-     &                                               ,import_data
-     &                                               ,export_result
-     &                                               ,import_result)
       end subroutine
 
       subroutine SET_PARTITION_ALGORITHM( loadbalancer_, name
@@ -183,7 +147,9 @@ cf2py   call import_result(buffer, id, buffer_size)
         call OUTPUT_PARTITIONING(loadbalancer)
       end subroutine
 
-      subroutine COMMUNICATE_DATA( loadbalancer_ )
+      subroutine COMMUNICATE_DATA          ( loadbalancer_ 
+     &                                     , export_data
+     &                                     , import_data)
         use iso_c_binding
         use iso_fortran_env
         use LOADBALANCER, only: t_loadbalancer
@@ -191,12 +157,24 @@ cf2py   call import_result(buffer, id, buffer_size)
         integer(c_intptr_t), intent(in)           :: loadbalancer_
         type(c_ptr)                               :: loadbalancer_c_ptr
         type(t_loadbalancer), pointer             :: loadbalancer
+#include "lb_callback.fi"
+        procedure(serialize)                   :: export_data
+        procedure(deserialize)                 :: import_data
+cf2py   integer(c_int32_t) :: buffer_size
+cf2py   integer*1, allocatable, dimension(buffer_size) :: buffer
+cf2py   integer(c_int64_t) :: id
+cf2py   call export_data(buffer, id, buffer_size)
+cf2py   call import_data(buffer, id, buffer_size)
         loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
         call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
+        loadbalancer% export_data => export_data
+        loadbalancer% import_data => import_data
         call loadbalancer% COMMUNICATE_DATA()
       end subroutine
 
-      subroutine COMMUNICATE_RESULT( loadbalancer_ )
+      subroutine COMMUNICATE_RESULT        ( loadbalancer_ 
+     &                                     , export_result
+     &                                     , import_result)
         use iso_c_binding
         use iso_fortran_env
         use LOADBALANCER, only: t_loadbalancer
@@ -204,8 +182,18 @@ cf2py   call import_result(buffer, id, buffer_size)
         integer(c_intptr_t), intent(in)           :: loadbalancer_
         type(c_ptr)                               :: loadbalancer_c_ptr
         type(t_loadbalancer), pointer             :: loadbalancer
+#include "lb_callback.fi"
+        procedure(serialize)                   :: export_result
+        procedure(deserialize)                 :: import_result
+cf2py   integer(c_int32_t) :: buffer_size
+cf2py   integer*1, allocatable, dimension(buffer_size) :: buffer
+cf2py   integer(c_int64_t) :: id
+cf2py   call export_result(buffer, id, buffer_size)
+cf2py   call import_result(buffer, id, buffer_size)
         loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
         call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
+        loadbalancer% export_result => export_result
+        loadbalancer% import_result => import_result
         call loadbalancer% COMMUNICATE_RESULT()
       end subroutine
 

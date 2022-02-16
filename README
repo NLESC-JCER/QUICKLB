@@ -1,0 +1,8 @@
+
+To run the test run 
+
+```bash
+PYTHONPATH=$PYTHONPATH:`pwd`/../build/ time -p mpirun --oversubscribe -n 4 python test.py --nolb
+```
+
+from the test directory after compiling the library

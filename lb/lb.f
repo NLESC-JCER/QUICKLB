@@ -43,7 +43,6 @@
      &                                              = .false.
 
 !---- Parameters
-        integer(int32)                           :: block_npoints
         integer(int32)                           :: data_block_bytes
         integer(int32)                           :: result_block_bytes
 !---- Needed for (de)serialization and communication of blocks
@@ -352,7 +351,6 @@
      &                               , data_block_bytes
      &                               , result_block_bytes
      &                               , nblocks
-     &                               , block_npoints
      &                               , communicator)
         use iso_c_binding, only : c_size_t
         implicit none
@@ -360,7 +358,6 @@
         integer(int32)                          :: data_block_bytes
         integer(int32)                          :: result_block_bytes
         integer(int32)                          :: nblocks
-        integer(int32)                          :: block_npoints
         type(MPI_COMM)                          :: communicator
 
         loadbalancer%comm = communicator
@@ -371,8 +368,6 @@
         loadbalancer%data_block_bytes = data_block_bytes
         call ASSERT(result_block_bytes > 0)
         loadbalancer%result_block_bytes = result_block_bytes
-        call ASSERT(block_npoints > 0)
-        loadbalancer% block_npoints = block_npoints
 !---- Allocate Arrays for loadbalancing
         allocate(loadbalancer% weights(nblocks))
         loadbalancer% weights = 1.
@@ -442,7 +437,7 @@
       subroutine LOADBALANCER_COMMUNICATE_DATA ( this )
         implicit none
         class(t_loadbalancer), intent(inout)      :: this
-        integer                                   :: n
+        integer(int64)                            :: n
         type(MPI_REQUEST):: send_reqs(this%communication%exports_length)
         type(MPI_REQUEST):: recv_reqs(this%communication%imports_length)
         type(BYTEsliceptr)::
@@ -490,10 +485,10 @@
         call MPI_WAITALL( this%communication%imports_length
      &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
 
-        do n = 1, this%export_num_ids
+        do n = 1, this%import_num_ids
           call this% import_data( this%data_receive_buffer(
      &          (n-1)*this% data_block_bytes+1:n*this% data_block_bytes)
-     &                          , this%export_ids(n) 
+     &                          , n 
      &                          , this% data_block_bytes)
 
         end do
@@ -509,7 +504,7 @@
         implicit none
         class(t_loadbalancer)                     :: this
 
-        integer(int32)                            :: n
+        integer(int64)                            :: n
         type(MPI_REQUEST):: recv_reqs(this%communication%exports_length)
         type(MPI_REQUEST):: send_reqs(this%communication%imports_length)
         type(BYTEsliceptr)::
@@ -523,7 +518,7 @@
         do n = 1, this%import_num_ids
           call this% export_result( this%result_send_buffer(
      &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
-     &                          , this%import_ids(n) 
+     &                          , n 
      &                          , this% result_block_bytes)
 
         end do
@@ -557,10 +552,10 @@
         call MPI_WAITALL( this%communication%exports_length
      &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
 
-        do n = 1, this%import_num_ids
+        do n = 1, this%export_num_ids
           call this% import_result( this%result_receive_buffer(
      &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
-     &                          , this%import_ids(n) 
+     &                          , this%export_ids(n) 
      &                          , this% result_block_bytes)
 
         end do
