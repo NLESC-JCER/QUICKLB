@@ -44,7 +44,6 @@ if(PYTHON_INTERFACE)
                      BYPRODUCTS ${CMAKE_BINARY_DIR}/quicklb.cpython*.so
                      COMMAND f2py --overwrite-signature -m quicklb -h quicklb.pyf 
                      ${CMAKE_SOURCE_DIR}/lb/lb_interface.f
-                     ${CMAKE_SOURCE_DIR}/lb/test.f
                      COMMAND f2py -m quicklb -c quicklb.pyf
                      --f2cmap ${CMAKE_SOURCE_DIR}/f2py_f2cmap
                      $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lmpi -lgfortran

@@ -42,9 +42,9 @@ class Grid():
     for cell in self.cells:
       rand = random.randint(0,100)
       if rand > 95:
-        cell.difficulty = min(100,cell.difficulty+rand)
+        cell.difficulty = min(1000,cell.difficulty+rand)
       else:
-        cell.difficulty = max(cell.difficulty - 5,1)
+        cell.difficulty = max(cell.difficulty - 10,1)
 
   def compute(self):
     for cell in self.cells:
