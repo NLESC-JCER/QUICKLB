@@ -3,7 +3,5 @@
 before-all = [
   "yum install -y openmpi-devel",
 ]
-before-build=[
-  "source /etc/profile.d/modules.sh",
-  "module load mpi",
-]
+
+environment = { PATH="/usr/lib64/openmpi/bin:$PATH" }
