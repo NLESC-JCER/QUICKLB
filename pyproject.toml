@@ -1,0 +1,6 @@
+[tool.cibuildwheel]
+
+before-build = [
+  "yum install openmpi-devel"
+  "module load openmpi"
+]
