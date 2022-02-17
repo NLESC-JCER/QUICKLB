@@ -2,6 +2,6 @@
 
 before-all = [
   "yum install -y openmpi-devel",
-  "echo 'source /etc/profile.d/modules.sh' >> ~/.bashrc,
+  "echo 'source /etc/profile.d/modules.sh' >> ~/.bashrc",
   "echo 'module load mpi' >> ~/.bashrc"
 ]
