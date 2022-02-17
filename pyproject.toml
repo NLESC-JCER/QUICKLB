@@ -1,7 +1,7 @@
 [tool.cibuildwheel]
 
 before-all = [
-  "yum update",
-  "yum install gcc-gfortran cmake openmpi-devel",
+  "yum install -y openmpi-devel",
+  "source /etc/profile.d/modules.sh
   "module load mpi",
 ]
