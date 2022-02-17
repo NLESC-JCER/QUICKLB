@@ -31,7 +31,7 @@ class build_ext(build_ext_orig):
 
         cmake_args = [
             '-DCMAKE_BUILD_TYPE=RELEASE',
-            '-DFortran_COMPILER=mpif90',
+            '-DFortran_COMPILER=mpifort',
             '-DPYTHON_INTERFACE=on',
         ]
 
