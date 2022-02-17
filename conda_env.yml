@@ -5,7 +5,6 @@ dependencies:
   - numpy
   - python=3.10
   - ipython
-  - gcc
   - gfortran
   - openmpi
   - cmake
