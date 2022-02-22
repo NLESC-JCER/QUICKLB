@@ -1,18 +1,37 @@
       interface
-        subroutine serialize ( buffer, serialize_id, buffer_size ) 
+        subroutine serialize_point ( buffer, serialize_id, buffer_size ) 
           use iso_fortran_env
           use iso_c_binding
           implicit none
           integer(c_int64_t), intent(in)          :: serialize_id
           integer(c_int32_t), intent(in)          :: buffer_size
           integer*1, intent(inout), dimension(buffer_size)  :: buffer
-        end subroutine serialize
-        subroutine deserialize ( buffer, deserialize_id, buffer_size ) 
+        end subroutine serialize_point
+        subroutine deserialize_point ( buffer, deserialize_id, buffer_size ) 
           use iso_fortran_env
           use iso_c_binding
           implicit none
           integer(c_int64_t), intent(in)          :: deserialize_id
           integer(c_int32_t), intent(in)          :: buffer_size
           integer*1, intent(in), dimension(buffer_size)  :: buffer
+        end subroutine deserialize_point
+        subroutine serialize ( buffer, ids, buffer_size, ids_size ) 
+          use iso_fortran_env
+          use iso_c_binding
+          implicit none
+          integer(c_int32_t), intent(in)                               :: ids_size
+          integer(c_int64_t), intent(in), dimension(ids_size)          :: ids
+          integer(c_int32_t), intent(in)                               :: buffer_size
+          integer*1, intent(inout), dimension(buffer_size,ids_size)    :: buffer
+        end subroutine serialize
+        subroutine deserialize ( buffer, ids, buffer_size, ids_size ) 
+          use iso_fortran_env
+          use iso_c_binding
+          implicit none
+          integer(c_int32_t), intent(in)                           :: ids_size
+          integer(c_int64_t), intent(in), dimension(ids_size)      :: ids
+          integer(c_int32_t), intent(in)                           :: buffer_size
+          integer*1, intent(in), dimension(buffer_size, ids_size)  :: buffer
         end subroutine deserialize
+
       end interface

@@ -147,6 +147,56 @@
         call OUTPUT_PARTITIONING(loadbalancer)
       end subroutine
 
+      subroutine COMMUNICATE_DATA_POINT   ( loadbalancer_ 
+     &                                     , export_data_point
+     &                                     , import_data_point)
+        use iso_c_binding
+        use iso_fortran_env
+        use LOADBALANCER, only: t_loadbalancer
+        implicit none
+        integer(c_intptr_t), intent(in)           :: loadbalancer_
+        type(c_ptr)                               :: loadbalancer_c_ptr
+        type(t_loadbalancer), pointer             :: loadbalancer
+#include "lb_callback.fi"
+        procedure(serialize_point)                :: export_data_point
+        procedure(deserialize_point)              :: import_data_point
+cf2py   integer(c_int32_t) :: buffer_size
+cf2py   integer*1, allocatable, dimension(buffer_size) :: buffer
+cf2py   integer(c_int64_t) :: id
+cf2py   call export_data_point(buffer, id, buffer_size)
+cf2py   call import_data_point(buffer, id, buffer_size)
+        loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
+        call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
+        loadbalancer% export_data_point => export_data_point
+        loadbalancer% import_data_point => import_data_point
+        call loadbalancer% COMMUNICATE_DATA_POINT()
+      end subroutine
+
+      subroutine COMMUNICATE_RESULT_POINT  ( loadbalancer_ 
+     &                                     , export_result_point
+     &                                     , import_result_point)
+        use iso_c_binding
+        use iso_fortran_env
+        use LOADBALANCER, only: t_loadbalancer
+        implicit none
+        integer(c_intptr_t), intent(in)           :: loadbalancer_
+        type(c_ptr)                               :: loadbalancer_c_ptr
+        type(t_loadbalancer), pointer             :: loadbalancer
+#include "lb_callback.fi"
+        procedure(serialize_point)             :: export_result_point
+        procedure(deserialize_point)           :: import_result_point
+cf2py   integer(c_int32_t) :: buffer_size
+cf2py   integer*1, allocatable, dimension(buffer_size) :: buffer
+cf2py   integer(c_int64_t) :: id
+cf2py   call export_result_point(buffer, id, buffer_size)
+cf2py   call import_result_point(buffer, id, buffer_size)
+        loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
+        call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
+        loadbalancer% export_result_point => export_result_point
+        loadbalancer% import_result_point => import_result_point
+        call loadbalancer% COMMUNICATE_RESULT_POINT()
+      end subroutine
+
       subroutine COMMUNICATE_DATA          ( loadbalancer_ 
      &                                     , export_data
      &                                     , import_data)
@@ -158,13 +208,14 @@
         type(c_ptr)                               :: loadbalancer_c_ptr
         type(t_loadbalancer), pointer             :: loadbalancer
 #include "lb_callback.fi"
-        procedure(serialize)                   :: export_data
-        procedure(deserialize)                 :: import_data
+        procedure(serialize)                      :: export_data
+        procedure(deserialize)                    :: import_data
 cf2py   integer(c_int32_t) :: buffer_size
-cf2py   integer*1, allocatable, dimension(buffer_size) :: buffer
-cf2py   integer(c_int64_t) :: id
-cf2py   call export_data(buffer, id, buffer_size)
-cf2py   call import_data(buffer, id, buffer_size)
+cf2py   integer(c_int32_t) :: ids_size
+cf2py   integer*1, allocatable, dimension(buffer_size,ids_size):: buffer
+cf2py   integer(c_int64_t), dimension(ids_size) :: ids
+cf2py   call export_data(buffer, ids, buffer_size, ids_size)
+cf2py   call import_data(buffer, ids, buffer_size, ids_size)
         loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
         call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
         loadbalancer% export_data => export_data
@@ -186,10 +237,11 @@ cf2py   call import_data(buffer, id, buffer_size)
         procedure(serialize)                   :: export_result
         procedure(deserialize)                 :: import_result
 cf2py   integer(c_int32_t) :: buffer_size
-cf2py   integer*1, allocatable, dimension(buffer_size) :: buffer
-cf2py   integer(c_int64_t) :: id
-cf2py   call export_result(buffer, id, buffer_size)
-cf2py   call import_result(buffer, id, buffer_size)
+cf2py   integer(c_int32_t) :: ids_size
+cf2py   integer*1, allocatable, dimension(buffer_size,ids_size):: buffer
+cf2py   integer(c_int64_t), dimension(ids_size) :: ids
+cf2py   call export_result(buffer, ids, buffer_size, ids_size)
+cf2py   call import_result(buffer, ids, buffer_size, ids_size)
         loadbalancer_c_ptr = transfer(loadbalancer_, loadbalancer_c_ptr)
         call c_f_pointer(loadbalancer_c_ptr, loadbalancer)  
         loadbalancer% export_result => export_result

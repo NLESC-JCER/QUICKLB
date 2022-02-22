@@ -16,8 +16,13 @@ class Cell():
   step: int = 1
   offloaded: bool = False
 
+  def difficulty_init(self):
+    rand = random.randint(0,100)
+    if (rand > 100-MPI.COMM_WORLD.Get_rank()*4):
+      self.difficulty = rand
+
   def compute(self):
-    sleep(self.difficulty/1000.) #sleep in miliseconds/10
+    sleep(self.difficulty/10000.) #sleep in miliseconds/10
     self.step +=1
 
   def serialize(self):
@@ -27,6 +32,8 @@ class Cell():
 class Grid():
   def __init__(self, size):
     self.cells = [ Cell() for x in range(size)]
+    for cell in self.cells:
+      cell.difficulty_init()
     self.remote_cells = []
 
   def serialize(self,id):
@@ -40,11 +47,13 @@ class Grid():
 
   def update_difficulty(self):
     for cell in self.cells:
-      rand = random.randint(0,100)
-      if rand > 95:
-        cell.difficulty = min(1000,cell.difficulty+rand)
-      else:
-        cell.difficulty = max(cell.difficulty - 10,1)
+      what = random.random()
+      if what < 0.25:
+        cell.difficulty = max(cell.difficulty - 5,1)
+      elif what < 0.5:
+        cell.difficulty = min(200,cell.difficulty+5)
+      elif what < 1:
+        pass
 
   def compute(self):
     for cell in self.cells:
@@ -68,7 +77,7 @@ args = parser.parse_args()
 loadbalance = not args.nolb
 
 #Lets have 1000 cells divided by the number of processors
-numcells = int(1000/MPI.COMM_WORLD.Get_size())
+numcells = 100
 grid = Grid(numcells)
 
 #create our loadbalancer
@@ -76,7 +85,7 @@ cell_size = len( pickle.dumps(Cell()))
 lb = quicklb.create(cell_size,cell_size,numcells,quicklb.init())
 
 #set the desired partitioning algorithm
-quicklb.set_partition_algorithm(lb, 'GREEDY', .0,.0,10)
+quicklb.set_partition_algorithm(lb, 'SORT', .0,.0,10)
 
 
 #Callback function needs to be unique for grid instance
@@ -102,18 +111,20 @@ for iteration in range(10):
     print("Iteration ", iteration)
   # Update difficulty randomly
   grid.update_difficulty()
-  # Update weights and run partitioning algorithm, and output it to loadbalance.info
-  weights = np.array([ cell.difficulty for cell in grid.cells],dtype=np.float32)
 
   if loadbalance:
+    # Update weights and run partitioning algorithm, and output it to loadbalance.info
+    weights = np.array([ cell.difficulty for cell in grid.cells],dtype=np.float32)
     quicklb.set_weights(lb,weights)
     quicklb.partition(lb)
-    quicklb.partitioning_info(lb,True)
+    quicklb.partitioning_info(lb,False)
 
-    quicklb.communicate_data(lb, serialize_data_cell, deserialize_data_cell)
+    quicklb.communicate_data_point(lb, serialize_data_cell, deserialize_data_cell)
 
   grid.compute()
 
   if loadbalance:
-    quicklb.communicate_result(lb, serialize_result_cell, deserialize_result_cell)
+    quicklb.communicate_result_point(lb, serialize_result_cell, deserialize_result_cell)
     grid.localize()
+
+  MPI.COMM_WORLD.Barrier()

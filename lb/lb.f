@@ -116,6 +116,18 @@
 !----
 !     User defined functions that perform the serialization and
 !     Deserialization.
+        procedure(SERIALIZE_POINT)
+     &      , pointer, nopass                  :: EXPORT_DATA_POINT
+     &      => null()
+        procedure(DESERIALIZE_POINT)
+     &      , pointer, nopass                  :: IMPORT_DATA_POINT
+     &      => null()
+        procedure(SERIALIZE_POINT)
+     &      , pointer, nopass                  :: EXPORT_RESULT_POINT
+     &      => null()
+        procedure(DESERIALIZE_POINT)
+     &      , pointer, nopass                  :: IMPORT_RESULT_POINT
+     &      => null()
         procedure(SERIALIZE)
      &      , pointer, nopass                  :: EXPORT_DATA
      &      => null()
@@ -142,6 +154,10 @@
      &      => LOADBALANCER_COMMUNICATE_DATA
         procedure,public,pass :: COMMUNICATE_RESULT
      &      => LOADBALANCER_COMMUNICATE_RESULT
+        procedure,public,pass :: COMMUNICATE_DATA_POINT
+     &      => LOADBALANCER_COMMUNICATE_DATA_POINT
+        procedure,public,pass :: COMMUNICATE_RESULT_POINT
+     &      => LOADBALANCER_COMMUNICATE_RESULT_POINT
         procedure,public,pass :: CALCULATE_GID_OFFSET
      &      => LOADBALANCER_CALCULATE_GID_OFFSET
         procedure,public,pass :: CREATE_COMMUNICATION
@@ -445,11 +461,142 @@
         type(BYTEsliceptr)::
      &     recv_slices(this%communication%imports_length)
         integer(int32)                            :: err
+        integer*1, pointer, dimension(:,:)        :: buffer
+        type(MPI_COMM) :: comm_inca
+        comm_inca = this%comm
+
+        buffer(1:this%data_block_bytes,1:this%export_num_ids) => 
+     &      this%data_send_buffer
+        call this%export_data( buffer, this%export_ids
+     &     , this%data_block_bytes, this%export_num_ids)
+
+
+        associate ( comm => this% communication)
+        ! MPI SEND
+        do n = 1, comm%exports_length
+          send_slices(n)%p =>
+     &         this%data_send_buffer( comm%exports(n)%data_buf_start
+     &                             : comm%exports(n)%data_buf_end)
+          call MPI_ISEND(
+     &          send_slices(n)%p
+     &        , this% data_block_bytes*comm%exports(n)%length
+     &        , MPI_BYTE
+     &        , comm%exports(n)%proc, 413
+     &        , comm_inca, send_reqs(n), err)
+        end do
+        ! MPI RECEIVE
+        do n = 1, comm%imports_length
+          recv_slices(n)%p =>
+     &        this%data_receive_buffer( comm%imports(n)%data_buf_start
+     &                                : comm%imports(n)%data_buf_end)
+          call MPI_IRECV(
+     &          recv_slices(n)%p
+     &        , this% data_block_bytes*comm%imports(n)%length
+     &        , MPI_BYTE
+     &        , comm%imports(n)%proc, 413
+     &        , comm_inca, recv_reqs(n), err)
+        end do
+
+        call MPI_WAITALL( this%communication%imports_length
+     &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
+
+!       do n = 1, this%import_num_ids
+!         call this% import_data_point( this%data_receive_buffer(
+!    &          (n-1)*this% data_block_bytes+1:n*this% data_block_bytes)
+!    &                          , n 
+!    &                          , this% data_block_bytes)
+
+!       end do
+
+        call MPI_WAITALL( this%communication%exports_length
+     &                  , send_reqs, MPI_STATUSES_IGNORE, err)
+        end associate
+
+      end subroutine LOADBALANCER_COMMUNICATE_DATA
+
+!---- Inverse of communicate data
+      subroutine LOADBALANCER_COMMUNICATE_RESULT ( this )
+        implicit none
+        class(t_loadbalancer)                     :: this
+
+        integer(int64)                            :: n
+        type(MPI_REQUEST):: recv_reqs(this%communication%exports_length)
+        type(MPI_REQUEST):: send_reqs(this%communication%imports_length)
+        type(BYTEsliceptr)::
+     &    recv_slices(this%communication%exports_length)
+        type(BYTEsliceptr)::
+     &    send_slices(this%communication%imports_length)
+        integer(int32)                             :: err
+        type(MPI_COMM) :: comm_inca
+        comm_inca = this%comm
+
+!       do n = 1, this%import_num_ids
+!         call this% export_result_point( this%result_send_buffer(
+!    &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
+!    &                          , n 
+!    &                          , this% result_block_bytes)
+
+!        end do
+
+        associate ( comm => this% communication)
+        ! MPI SEND
+        do n = 1, comm%imports_length
+          send_slices(n)%p =>
+     &         this%result_send_buffer( comm%imports(n)%result_buf_start
+     &                                : comm%imports(n)%result_buf_end)
+          call MPI_ISEND(
+     &          send_slices(n)%p
+     &        , this% result_block_bytes*comm%imports(n)%length
+     &        , MPI_BYTE
+     &        , comm%imports(n)%proc, 4242
+     &        , comm_inca, send_reqs(n), err)
+        end do
+        ! MPI RECEIVE
+        do n = 1, comm%exports_length
+          recv_slices(n)%p => this%result_receive_buffer(
+     &                                  comm%exports(n)%result_buf_start
+     &                                : comm%exports(n)%result_buf_end)
+          call MPI_IRECV(
+     &          recv_slices(n)%p
+     &        , this% result_block_bytes*comm%exports(n)%length
+     &        , MPI_BYTE
+     &        , comm%exports(n)%proc, 4242
+     &        , comm_inca, recv_reqs(n), err)
+        end do
+
+        call MPI_WAITALL( this%communication%exports_length
+     &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
+
+!       do n = 1, this%export_num_ids
+!         call this% import_result_point( this%result_receive_buffer(
+!    &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
+!    &                          , this%export_ids(n) 
+!    &                          , this% result_block_bytes)
+
+!       end do
+
+        call MPI_WAITALL( this%communication%imports_length
+     &                  , send_reqs, MPI_STATUSES_IGNORE, err)
+        end associate
+
+      end subroutine LOADBALANCER_COMMUNICATE_RESULT
+
+      subroutine LOADBALANCER_COMMUNICATE_DATA_POINT ( this )
+        implicit none
+        class(t_loadbalancer), intent(inout)      :: this
+        integer(int64)                            :: n
+        type(MPI_REQUEST):: send_reqs(this%communication%exports_length)
+        type(MPI_REQUEST):: recv_reqs(this%communication%imports_length)
+        type(BYTEsliceptr)::
+     &    send_slices(this%communication%exports_length)
+        type(BYTEsliceptr)::
+     &     recv_slices(this%communication%imports_length)
+        integer(int32)                            :: err
         type(MPI_COMM) :: comm_inca
         comm_inca = this%comm
 
         do n = 1, this%export_num_ids
-          call this% export_data( this%data_send_buffer(
+          call this% export_data_point( this%data_send_buffer(
      &          (n-1)*this% data_block_bytes+1:n*this% data_block_bytes)
      &                          , this%export_ids(n) 
      &                          , this% data_block_bytes)
@@ -486,7 +633,7 @@
      &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
 
         do n = 1, this%import_num_ids
-          call this% import_data( this%data_receive_buffer(
+          call this% import_data_point( this%data_receive_buffer(
      &          (n-1)*this% data_block_bytes+1:n*this% data_block_bytes)
      &                          , n 
      &                          , this% data_block_bytes)
@@ -497,10 +644,10 @@
      &                  , send_reqs, MPI_STATUSES_IGNORE, err)
         end associate
 
-      end subroutine LOADBALANCER_COMMUNICATE_DATA
+      end subroutine LOADBALANCER_COMMUNICATE_DATA_POINT
 
 !---- Inverse of communicate data
-      subroutine LOADBALANCER_COMMUNICATE_RESULT ( this )
+      subroutine LOADBALANCER_COMMUNICATE_RESULT_POINT ( this )
         implicit none
         class(t_loadbalancer)                     :: this
 
@@ -516,7 +663,7 @@
         comm_inca = this%comm
 
         do n = 1, this%import_num_ids
-          call this% export_result( this%result_send_buffer(
+          call this% export_result_point( this%result_send_buffer(
      &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
      &                          , n 
      &                          , this% result_block_bytes)
@@ -553,7 +700,7 @@
      &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
 
         do n = 1, this%export_num_ids
-          call this% import_result( this%result_receive_buffer(
+          call this% import_result_point( this%result_receive_buffer(
      &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
      &                          , this%export_ids(n) 
      &                          , this% result_block_bytes)
@@ -564,7 +711,7 @@
      &                  , send_reqs, MPI_STATUSES_IGNORE, err)
         end associate
 
-      end subroutine LOADBALANCER_COMMUNICATE_RESULT
+      end subroutine LOADBALANCER_COMMUNICATE_RESULT_POINT
 
       subroutine LOADBALANCER_DESTROY ( this )
         implicit none
