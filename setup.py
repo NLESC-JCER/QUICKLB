@@ -38,7 +38,7 @@ class build_ext(build_ext_orig):
         if not self.dry_run:
             self.spawn(['make'])
 
-        for file in glob.glob('quicklb.*.so'):
+        for file in glob.glob('quicklb_lib.*.so'):
           print("Copying: ", file)
           copy(file, str(cwd)+"/"+str(extdir))
         os.chdir(str(cwd))
@@ -46,8 +46,8 @@ class build_ext(build_ext_orig):
 setup(
     name='quicklb',
     version='0.1',
-    packages=[],
-    ext_modules=[CMakeExtension('quicklb')],
+    packages=['quicklb'],
+    ext_modules=[CMakeExtension('quicklb_lib')],
     cmdclass={
         'build_ext': build_ext,
     },

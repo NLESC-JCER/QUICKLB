@@ -41,10 +41,10 @@ if(PYTHON_INTERFACE)
                      DEPENDS quicklb_static
                              ${CMAKE_SOURCE_DIR}/lb/lb_callback.fi 
                              ${CMAKE_SOURCE_DIR}/f2py_f2cmap
-                     BYPRODUCTS ${CMAKE_BINARY_DIR}/quicklb.cpython*.so
-                     COMMAND f2py --overwrite-signature -m quicklb -h quicklb.pyf 
+                     BYPRODUCTS ${CMAKE_BINARY_DIR}/quicklb_lib.cpython*.so
+                     COMMAND f2py --overwrite-signature -m quicklb_lib -h quicklb_lib.pyf 
                      ${CMAKE_SOURCE_DIR}/lb/lb_interface.f
-                     COMMAND f2py -m quicklb -c quicklb.pyf
+                     COMMAND f2py -m quicklb_lib -c quicklb_lib.pyf
                      --f2cmap ${CMAKE_SOURCE_DIR}/f2py_f2cmap
                      $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lmpi -lgfortran
                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
