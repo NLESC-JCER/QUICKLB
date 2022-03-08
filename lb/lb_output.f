@@ -128,7 +128,7 @@
         real(real32), pointer, contiguous    :: buf_real(:)
 !---- Root process writes this, receiving per process would require less memory
 !---- But is probably slower
-        type(t_tot_data), pointer,contiguous :: totals(:)
+        type(t_tot_data), pointer,contiguous :: totals(:) => null()
         type(t_tot_data)                     :: total_local(1)
 
 

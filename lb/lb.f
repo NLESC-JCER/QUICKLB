@@ -461,15 +461,16 @@
         type(BYTEsliceptr)::
      &     recv_slices(this%communication%imports_length)
         integer(int32)                            :: err
-        integer*1, pointer, dimension(:,:)        :: buffer
+        integer*1, pointer, dimension(:,:)        :: buffer => null()
         type(MPI_COMM) :: comm_inca
         comm_inca = this%comm
 
-        buffer(1:this%data_block_bytes,1:this%export_num_ids) => 
-     &      this%data_send_buffer
-        call this%export_data( buffer, this%export_ids
-     &     , this%data_block_bytes, this%export_num_ids)
-
+        if (this%export_num_ids > 0) then
+          buffer(1:this%data_block_bytes,1:this%export_num_ids) => 
+     &        this%data_send_buffer
+          call this%export_data( buffer, this%export_ids
+     &       , this%data_block_bytes, this%export_num_ids)
+        endif
 
         associate ( comm => this% communication)
         ! MPI SEND
@@ -500,13 +501,12 @@
         call MPI_WAITALL( this%communication%imports_length
      &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
 
-!       do n = 1, this%import_num_ids
-!         call this% import_data_point( this%data_receive_buffer(
-!    &          (n-1)*this% data_block_bytes+1:n*this% data_block_bytes)
-!    &                          , n 
-!    &                          , this% data_block_bytes)
-
-!       end do
+        if (this%import_num_ids > 0) then
+          buffer(1:this%data_block_bytes,1:this%import_num_ids) => 
+     &        this%data_receive_buffer
+          call this%import_data( buffer, this%import_ids
+     &       , this%data_block_bytes, this%import_num_ids)
+        endif
 
         call MPI_WAITALL( this%communication%exports_length
      &                  , send_reqs, MPI_STATUSES_IGNORE, err)
@@ -527,16 +527,16 @@
         type(BYTEsliceptr)::
      &    send_slices(this%communication%imports_length)
         integer(int32)                             :: err
+        integer*1, pointer, dimension(:,:)        :: buffer => null()
         type(MPI_COMM) :: comm_inca
         comm_inca = this%comm
 
-!       do n = 1, this%import_num_ids
-!         call this% export_result_point( this%result_send_buffer(
-!    &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
-!    &                          , n 
-!    &                          , this% result_block_bytes)
-
-!        end do
+        if (this%import_num_ids > 0) then
+          buffer(1:this%result_block_bytes,1:this%import_num_ids) => 
+     &        this%result_send_buffer
+          call this%export_result( buffer, this%import_ids
+     &       , this%result_block_bytes, this%import_num_ids)
+        endif
 
         associate ( comm => this% communication)
         ! MPI SEND
@@ -567,13 +567,12 @@
         call MPI_WAITALL( this%communication%exports_length
      &                  , recv_reqs, MPI_STATUSES_IGNORE, err)
 
-!       do n = 1, this%export_num_ids
-!         call this% import_result_point( this%result_receive_buffer(
-!    &      (n-1)*this% result_block_bytes+1:n*this% result_block_bytes)
-!    &                          , this%export_ids(n) 
-!    &                          , this% result_block_bytes)
-
-!       end do
+        if (this%export_num_ids > 0) then
+          buffer(1:this%result_block_bytes,1:this%export_num_ids) => 
+     &        this%result_receive_buffer
+          call this%import_result( buffer, this%export_ids
+     &       , this%result_block_bytes, this%export_num_ids)
+        endif
 
         call MPI_WAITALL( this%communication%imports_length
      &                  , send_reqs, MPI_STATUSES_IGNORE, err)
