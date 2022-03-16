@@ -59,4 +59,4 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 # -- Autodoc options
-autodoc_mock_imports = ["quicklb_lib"]
+autodoc_mock_imports = ["quicklb_lib","numpy"]

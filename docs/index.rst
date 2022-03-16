@@ -10,7 +10,7 @@ Welcome to QUICKLB's documentation!
    :maxdepth: 2
    :caption: Contents:
    
-   Loadbalancer
+   loadbalancer
 
 
 Indices and tables
