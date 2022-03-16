@@ -5,10 +5,10 @@ import struct
 from mpi4py import MPI
 rank = MPI.COMM_WORLD.Get_rank()
 
-
 class Cell():
   """Cell that needs some work to be done"""
   difficulty: int = 1
+  processor: int = rank
   id: int = -1
   step: int = 1
 
@@ -22,10 +22,10 @@ class Cell():
     self.step +=1
 
   def serialize(self):
-    return struct.pack('lll',self.difficulty,self.step,self.id)
+    return struct.pack('llll',self.difficulty,self.step,self.id, self.processor)
 
   def deserialize(self, buffer):
-    self.difficulty, self.step, self.id = struct.unpack('lll',buffer.tobytes())
+    self.difficulty, self.step, self.id, self.processor = struct.unpack('llll',buffer.tobytes())
 
 cells = [Cell() for _ in range(40)]
 for i in range(len(cells)):
@@ -41,5 +41,15 @@ for i in range(10):
   lb.partitioning_info()
   lb.iterate()
 
-for cell in cells:
-  print(rank,cell.id,cell.step)
+#check values
+for i in range(len(cells)):
+  if cells[i].processor != MPI.COMM_WORLD.Get_rank():
+    print("Processor Value: ", cells[i].processor, " Expected: ", MPI.COMM_WORLD.Get_rank())
+    print("Failed")
+    break
+  if cells[i].id != i:
+    print("ID Value: ", cells[i].id, " Expected: ", i)
+    print("Failed")
+    break
+
+MPI.COMM_WORLD.Barrier()

@@ -28,7 +28,7 @@ class build_ext(build_ext_orig):
         extdir.mkdir(parents=True, exist_ok=True)
 
         cmake_args = [
-            '-DCMAKE_BUILD_TYPE=RELEASE',
+            '-DCMAKE_BUILD_TYPE=DEBUG',
             '-DFortran_COMPILER=mpifort',
             '-DPYTHON_INTERFACE=on',
         ]

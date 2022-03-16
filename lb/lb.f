@@ -384,6 +384,9 @@
         loadbalancer%data_block_bytes = data_block_bytes
         call ASSERT(result_block_bytes > 0)
         loadbalancer%result_block_bytes = result_block_bytes
+
+        loadbalancer%data_equals_result = 
+     &      result_block_bytes.eq.data_block_bytes
 !---- Allocate Arrays for loadbalancing
         allocate(loadbalancer% weights(nblocks))
         loadbalancer% weights = 1.

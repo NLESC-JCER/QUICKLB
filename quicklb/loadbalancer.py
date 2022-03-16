@@ -1,12 +1,9 @@
 import quicklb
-import pickle
 import numpy as np
 import time
 
 class Loadbalancer():
   def __init__(self,objects, algorithm, max_abs_li, max_rel_li, max_it):
-    self.comm = quicklb.init()
-
     #Check if objects is list-like
     #Check if its all the same object
 
@@ -23,7 +20,7 @@ class Loadbalancer():
 
 
     self.lb = quicklb.create(self.object_size, self.object_size 
-        + self.weight_size, len(objects), self.comm)
+        + self.weight_size, len(objects), quicklb.init())
 
     quicklb.set_partition_algorithm(self.lb, algorithm, max_abs_li, max_rel_li, max_it)
     quicklb.info(self.lb)

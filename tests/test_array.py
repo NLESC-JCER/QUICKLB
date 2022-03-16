@@ -2,11 +2,11 @@ import quicklb
 import numpy as np
 from mpi4py import MPI
 from dataclasses import dataclass
-import pickle
 from time import sleep
 from sys import getsizeof
 import random
 import argparse
+import struct
 random.seed(MPI.COMM_WORLD.Get_rank())
 
 @dataclass
@@ -14,11 +14,13 @@ class Cell():
   """Cell that needs some work to be done"""
   difficulty: int = 1
   step: int = 1
+  id: int = -1
+  processor: int = MPI.COMM_WORLD.Get_rank()
   offloaded: bool = False
 
   def difficulty_init(self):
     rand = random.randint(0,100)
-    if (rand > 100-MPI.COMM_WORLD.Get_rank()*4):
+    if (rand > 100-MPI.COMM_WORLD.Get_rank()*2):
       self.difficulty = rand
 
   def compute(self):
@@ -27,20 +29,26 @@ class Cell():
 
   def serialize(self):
     self.offloaded = True
-    return np.frombuffer(pickle.dumps(self),dtype=np.byte)
+    return np.frombuffer(
+        struct.pack('llll',self.difficulty,self.step,self.id,self.processor)
+        , dtype=np.byte)
+
+  def deserialize(self, buffer):
+    self.difficulty, self.step, self.id, self.processor = struct.unpack('llll',buffer.tobytes())
 
 class Grid():
   def __init__(self, size):
     self.cells = [ Cell() for x in range(size)]
-    for cell in self.cells:
-      cell.difficulty_init()
+    for i in range(len(self.cells)):
+      self.cells[i].difficulty_init()
+      self.cells[i].id = i
     self.remote_cells = []
 
   def serialize(self,id):
     return self.cells[id].serialize()
 
   def deserialize(self,buffer,id):
-    self.cells[id] = pickle.loads(buffer)
+    self.cells[id].deserialize(buffer)
 
   def add_remote_cell(self, cell):
     self.remote_cells.append(cell)
@@ -76,12 +84,12 @@ parser.add_argument('--nolb', default=False, action='store_true',
 args = parser.parse_args()
 loadbalance = not args.nolb
 
-#Lets have 1000 cells divided by the number of processors
-numcells = 100
+#Lets have 500 cells per processor
+numcells = 500
 grid = Grid(numcells)
 
 #create our loadbalancer
-cell_size = len( pickle.dumps(Cell()))
+cell_size = len( Cell().serialize())
 lb = quicklb.create(cell_size,cell_size,numcells,quicklb.init())
 
 #set the desired partitioning algorithm
@@ -96,11 +104,13 @@ def serialize_data_cell(buffer, ids, buffer_size, ids_size):
 
 def deserialize_data_cell(buffer, ids, buffer_size, ids_size):
   for i in range(ids_size):
-    grid.add_remote_cell(pickle.loads(buffer[:,i]))
+    cell = Cell()
+    cell.deserialize(buffer[:,i])
+    grid.add_remote_cell(cell)
 
 def serialize_result_cell(buffer, ids, buffer_size, ids_size):
   for i in range(ids_size):
-     buffer[:] = grid.remote_cells[ids[i]-1].serialize()
+     buffer[:,i] = grid.remote_cells[i].serialize()
   return buffer
 
 def deserialize_result_cell(buffer, ids, buffer_size, ids_size):
@@ -132,3 +142,14 @@ for iteration in range(10):
     grid.localize()
 
   MPI.COMM_WORLD.Barrier()
+
+#check values
+for i in range(len(grid.cells)):
+  if grid.cells[i].processor != MPI.COMM_WORLD.Get_rank():
+    print("Processor Value: ", grid.cells[i].processor, " Expected: ", MPI.COMM_WORLD.Get_rank())
+    print("Failed")
+    break
+  if grid.cells[i].id != i:
+    print("ID Value: ", grid.cells[i].id, " Expected: ", i)
+    print("Failed")
+    break
