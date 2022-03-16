@@ -9,7 +9,8 @@ Welcome to QUICKLB's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-
+   
+   Loadbalancer
 
 
 Indices and tables

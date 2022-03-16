@@ -4,9 +4,38 @@ import time
 
 class Loadbalancer():
   def __init__(self,objects, algorithm, max_abs_li, max_rel_li, max_it):
-    #Check if objects is list-like
-    #Check if its all the same object
+    """
+    Create a Loadbalancer object
 
+    Parameters
+    ----------
+    objects: list<Cell>
+        A list of objects which implement all functions specified in the
+        mock **Cell** object.
+    algorithm: string
+        Specifies the loadbalancing algorithm, valid values are:
+        - `"GREEDY"`
+        - `"SORT"`
+        - `"SORT2"`
+    max_abs_li: float
+        specify the maximum absolute load-imbalance for the partitioning
+        algorithm. When this threshold is reached the partitioning concludes
+        `0.0` would be no load imbalance, `1.` would be a load imbalance of
+        100%
+    max_rel_li: float
+        specify the maximum relative load-imbalance for the partitioning
+        algorithm. Is not used in the GREEDY partitioning scheme. When this
+        threshold is reached the partitioning concludes.
+    max_it: int
+        Maximum number of iterations for the loadbalancing algorithm. Set this
+        somewhere between 1 and the number of processors used (or larger, it is
+        limited to the maximum number of processors anyway)
+
+    Returns
+    -------
+    Loadbalancer:
+      A very fresh loadbalancing object !
+    """
     self.cell_class = objects[0].__class__
 
     self.objects = objects
@@ -52,6 +81,15 @@ class Loadbalancer():
       self.weights[id] = np.frombuffer(buffer[self.object_size:,i],dtype=np.float32)
 
   def iterate(self):
+    """
+    Perform a single iteration, with computation offloading.
+    this eventually calls **compute** on every single cell
+
+    Returns
+    -------
+    None
+
+    """
     quicklb.communicate_data(self.lb
         , lambda buffer,ids,buffer_size,ids_size:
             Loadbalancer.serialize_data_object(self,buffer,ids,buffer_size,ids_size) 
@@ -84,8 +122,30 @@ class Loadbalancer():
     self.offloaded  = [False for _ in range(len(self.objects))]
 
   def partition(self):
+    """
+    Call this function to (re)-partition the cells over the processors, it is
+    recommended to call this once before **iterate()**
+
+    Returns
+    -------
+
+    None
+    """
     quicklb.set_weights(self.lb,self.weights)
     quicklb.partition(self.lb)
 
   def partitioning_info(self,detailed=False):
+    """
+    Writes out partitioning info to the loadbalance.info file
+
+    Parameters
+    ----------
+    detailed: bool
+              When set to `True` write detailed information about every cell to
+              loadbalance.info
+
+    Returns
+    -------
+    None
+    """
     quicklb.partitioning_info(self.lb,detailed)
