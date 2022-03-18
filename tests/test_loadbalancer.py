@@ -6,7 +6,7 @@ from mpi4py import MPI
 rank = MPI.COMM_WORLD.Get_rank()
 
 class Cell():
-  """Cell that needs some work to be done"""
+  """Cell class which represents and contains our data"""
   difficulty: int = 1
   processor: int = rank
   id: int = -1
@@ -27,13 +27,22 @@ class Cell():
   def deserialize(self, buffer):
     self.difficulty, self.step, self.id, self.processor = struct.unpack('llll',buffer.tobytes())
 
+
+# Set up our data
 cells = [Cell() for _ in range(40)]
 for i in range(len(cells)):
   cells[i].difficulty_init()
   cells[i].id = i
 
+
+# Create a loadbalancer four our data
+# Partitioner: Greedy
+# Max_abs_li: 0.0
+# Max_rel_li: 0.0 (not used for GREEDY partitioner
+# Max_it: maximum number of iterations taken by partitioner
 lb = Loadbalancer(cells,"GREEDY",0.0,0.0,10)
 
+# Our main time iterating loop
 for i in range(10):
   if rank == 0:
     print("Iteration ", i)
@@ -41,7 +50,7 @@ for i in range(10):
   lb.partitioning_info()
   lb.iterate()
 
-#check values
+#check resulting values
 for i in range(len(cells)):
   if cells[i].processor != MPI.COMM_WORLD.Get_rank():
     print("Processor Value: ", cells[i].processor, " Expected: ", MPI.COMM_WORLD.Get_rank())
@@ -51,5 +60,3 @@ for i in range(len(cells)):
     print("ID Value: ", cells[i].id, " Expected: ", i)
     print("Failed")
     break
-
-MPI.COMM_WORLD.Barrier()
