@@ -1,6 +1,7 @@
 import quicklb
 import numpy as np
 import time
+import copy
 
 class Loadbalancer():
   def __init__(self,objects, algorithm, max_abs_li, max_rel_li, max_it):
@@ -36,7 +37,7 @@ class Loadbalancer():
     Loadbalancer:
       A very fresh loadbalancing object !
     """
-    self.cell_class = objects[0].__class__
+    self.cell_class = type(objects[0])
 
     self.objects = objects
    
@@ -65,13 +66,12 @@ class Loadbalancer():
     for i in range(ids_size):
       cell = self.cell_class()
       cell.deserialize(buffer[:,i])
-      self.remote_objects.append(cell)
+      self.remote_objects.append(copy.deepcopy(cell))
 
   def serialize_result_object(self,buffer, ids, buffer_size, ids_size):
     for i in range(ids_size):
-       id = i
-       buffer[:self.object_size,i] = np.frombuffer(self.remote_objects[id].serialize(),dtype=np.byte)
-       buffer[self.object_size:,i] = np.frombuffer(self.remote_weights[id],dtype=np.byte)
+       buffer[:self.object_size,i] = np.frombuffer(self.remote_objects[i].serialize(),dtype=np.byte)
+       buffer[self.object_size:,i] = np.frombuffer(self.remote_weights[i],dtype=np.byte)
     return buffer
 
   def deserialize_result_object(self,buffer, ids, buffer_size, ids_size):
