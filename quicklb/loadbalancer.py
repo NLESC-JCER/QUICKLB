@@ -64,9 +64,8 @@ class Loadbalancer():
 
   def deserialize_data_object(self,buffer, ids, buffer_size, ids_size):
     for i in range(ids_size):
-      cell = self.cell_class()
-      cell.deserialize(buffer[:,i])
-      self.remote_objects.append(copy.deepcopy(cell))
+      self.remote_objects.append(copy.deepcopy(self.cell_class()))
+      self.remote_objects[-1].deserialize(buffer[:,i])
 
   def serialize_result_object(self,buffer, ids, buffer_size, ids_size):
     for i in range(ids_size):

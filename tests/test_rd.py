@@ -15,7 +15,7 @@ def allocate_shared_array(size):
   return np.ndarray(size,dtype=np.float64,buffer=buf), win
 
 # Using shared array we cheat a bit to  make it simpler
-size = 30
+size = 100
 A, winA = allocate_shared_array((size,size))
 B, winB = allocate_shared_array((size,size))
 
@@ -31,13 +31,10 @@ B_local = B[start:end,:]
 if comm.Get_rank() == 0:
   A[:,:] = 1.
   B[:,:] = 0.
-  A[size//2-3:size//2+3,size//2-5:size//2+5] = 0.50
-  B[size//2-3:size//2+3,size//2-5:size//2+5] = 0.25
+  A[size//2-3:size//2+3,size//2-10:size//2+10] = 0.50
+  B[size//2-3:size//2+3,size//2-10:size//2+10] = 0.25
 
 class Cell():
-  # Pointers to the actual information
-  # A: np.array = np.array([float('nan')],dtype=np.float64)
-  # B: np.array = np.array([float('nan')],dtype=np.float64)
 
   def __init__(self,AA=None,BB=None):
     self.A = np.array([float('nan')],dtype=np.float64)
@@ -48,34 +45,25 @@ class Cell():
       self.B = BB
 
   def compute(self):
-#    soln =scipy.integrate.solve_ivp(Cell.deriv,(0,1),(self.A[0],self.B[0]), method='Radau')
-#    self.A[0] = self.A[0] + soln.y[0][-1]
-#    self.B[0] = self.B[0] + soln.y[1][-1]
-    AA = self.A[0]
-    BB = self.B[0]
-    self.A[0] = AA - AA*BB*BB + 0.0545*(1-AA)
-    self.B[0] = BB + AA*BB*BB - (0.0545+0.062)*BB
-
-  def deriv(t,y):
-    a, b = y
-    adot = a - a*b*b + 0.04 * ( 1 - a ) 
-    bdot = b + a*b*b - ( 0.04 + 0.06 ) * b
-    return adot, bdot
+    a = self.A[0]
+    b = self.B[0]
+    abb = a*b*b
+    self.A[0] = a - abb + 0.0545*(1-a)
+    self.B[0] = b + abb - (0.0545+0.062)*b
 
   def serialize(self):
-    ans = np.concatenate( (self.A.view(dtype=np.byte),
-                           self.B.view(dtype=np.byte)))
-    return ans
+    return np.concatenate( (self.A.view(dtype=np.byte),
+                            self.B.view(dtype=np.byte)))
 
   def deserialize(self, buffer):
-      
     self.A[0] = buffer[0:8].view(dtype=np.float64)
     self.B[0] = buffer[8:16].view(dtype=np.float64)
+
 
 cells = [Cell(A_local[i,j:j+1], B_local[i,j:j+1])
          for j in range(size) for i in range(A_local.shape[0])]
 
-lb = Loadbalancer(cells, "SORT", 0., 0., 10)
+lb = Loadbalancer(cells, "GREEDY", 0.01, 0.01, 10)
 
 
 A_diff = np.empty(shape=(A_local.shape[0]+2,A_local.shape[1]+2))
@@ -106,11 +94,12 @@ def diffuse():
   return LA,LB
 
 
-number_of_iterations = 100
+number_of_iterations = 6000
 for i in range(number_of_iterations):
   # Perform diffusion over the local field + boundaries (this is where we cheat with shared memory arrays
   winA.Sync()
   winB.Sync()
+  comm.Barrier()
   LA,LB = diffuse()
 
   # Chemistry
@@ -122,9 +111,8 @@ for i in range(number_of_iterations):
   A_local[:,:] = A_local + 0.1*LA
   B_local[:,:] = B_local + 0.05*LB
 
-  if i%40 == 0:
-  
-    if comm.Get_rank() == 0:
-      plt.imshow(B)
-      plt.show(block=False)
-      plt.pause(0.5)
+winB.Sync()
+comm.Barrier()
+if comm.Get_rank() == 0:
+  plt.imsave("gray_scott_rd.png",B)
+  plt.show()
