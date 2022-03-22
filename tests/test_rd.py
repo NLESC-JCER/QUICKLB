@@ -69,6 +69,7 @@ lb = Loadbalancer(cells, "GREEDY", 0.01, 0.01, 10)
 A_diff = np.empty(shape=(A_local.shape[0]+2,A_local.shape[1]+2))
 B_diff = np.empty(shape=(B_local.shape[0]+2,B_local.shape[1]+2))
 def diffuse():
+  # Perform diffusion over the local field + boundaries (this is where we cheat with shared memory arrays
   A_diff[1:-1,1:-1] = A_local
   # local periodic boundaries
   A_diff[0,1:-1] = A[start-1,:]
@@ -96,7 +97,6 @@ def diffuse():
 
 number_of_iterations = 6000
 for i in range(number_of_iterations):
-  # Perform diffusion over the local field + boundaries (this is where we cheat with shared memory arrays
   winA.Sync()
   winB.Sync()
   comm.Barrier()
