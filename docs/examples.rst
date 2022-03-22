@@ -66,7 +66,7 @@ loadbalancer:
   :lines: 67-93
 
 And with this loadbalancer + diffusion operator we can iterate to our
-harts content:
+heart's content:
 
 .. literalinclude:: ../tests/test_rd.py
   :lines: 96-110
