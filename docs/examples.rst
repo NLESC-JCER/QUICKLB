@@ -30,20 +30,20 @@ than normal numpy arrays). It also means that the example will only work if
 all processors have acces to the same memoryspace.
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 3-29
+  :lines: 2-27
 
 This gives us a slice on each processor which we fill up with an initial
 condition:
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 31-35
+  :lines: 29-33
 
 
 Secondly we need a structure to encapsulate these points such that the
 loadbalancer knows which data to communicate, how to encapsulate, and how to compute an interation 
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 37-60
+  :lines: 35-58
 
 This Cell class can either point to data when local, or store data when
 offloaded, furthermore a compute function is provided
@@ -51,27 +51,27 @@ offloaded, furthermore a compute function is provided
 We must create a list of cells that we want loadbalanced
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 63-64
+  :lines: 61-62
 
 Then we can create the Loadbalancer:
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 66
+  :lines: 64
 
 
 As an intermezzo we also need a diffusion operator which is separate from the
 loadbalancer:
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 69-95
+  :lines: 67-93
 
 And with this loadbalancer + diffusion operator we can iterate to our
 harts content:
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 98-112
+  :lines: 96-110
 
 Lastly we can create visualise this quite easily with matplotlib!
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 114-
+  :lines: 112-

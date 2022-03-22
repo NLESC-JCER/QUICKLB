@@ -1,7 +1,5 @@
 from quicklb import Loadbalancer
 import numpy as np
-import scipy.integrate
-import scipy.signal
 from mpi4py import MPI
 import matplotlib.pyplot as plt
 comm = MPI.COMM_WORLD
