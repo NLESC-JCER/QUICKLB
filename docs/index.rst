@@ -6,13 +6,15 @@
 Welcome to QUICKLB's documentation!
 ===================================
 
+For now the most interesting is the :ref:`examples` section.
+
+
+
 .. toctree::
    :maxdepth: 0
    :hidden:
    :caption: Contents:
    
-
-   installation
    examples
    loadbalancer
 

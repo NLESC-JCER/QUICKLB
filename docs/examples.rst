@@ -1,3 +1,5 @@
+.. _examples:
+
 Example usage
 =============
 
@@ -75,3 +77,5 @@ Lastly we can create visualise this quite easily with matplotlib!
 
 .. literalinclude:: ../tests/test_rd.py
   :lines: 112-
+
+.. image:: ../images/gray_scott_rd.png
