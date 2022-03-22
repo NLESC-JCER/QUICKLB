@@ -16,9 +16,7 @@ Unbalanced reaction diffusion with QUICKLB
 
 In this example we will create a reaction diffusion simulation which uses a
 loadbalancer for the chemistry calculation part (which is local), and a normal
-non-loadbalanced process for the diffusion process. To unbalance the chemistry
-process we will solve it at each timestep as a pair of stiff ode's
-
+non-loadbalanced process for the diffusion process.
 
 The easies and quickest way to get started is with the Loadbalancer object. 
 
