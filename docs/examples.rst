@@ -76,4 +76,15 @@ Lastly we can create visualise this quite easily with matplotlib!
 .. literalinclude:: ../tests/test_rd.py
   :lines: 127-
 
+
++-----------------+---------+---------------+
+| Timings         | Normal  | Load Balanced |
++=================+=========+===============+
+| **2 MPI procs** | 50.31 s |  51.63 s      |
++-----------------+---------+---------------+
+| **3 MPI procs** | 46.02 s |  41.25 s      |
++-----------------+---------+---------------+
+| **4 MPI procs** | 39.54 s |  33.04 s      |
++-----------------+---------+---------------+
+
 .. image:: ../images/gray_scott_rd.png
