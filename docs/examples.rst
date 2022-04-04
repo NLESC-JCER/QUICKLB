@@ -43,7 +43,7 @@ Secondly we need a structure to encapsulate these points such that the
 loadbalancer knows which data to communicate, how to encapsulate, and how to compute an interation 
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 35-58
+  :lines: 35-67
 
 This Cell class can either point to data when local, or store data when
 offloaded, furthermore a compute function is provided
@@ -51,29 +51,29 @@ offloaded, furthermore a compute function is provided
 We must create a list of cells that we want loadbalanced
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 61-62
+  :lines: 70-71
 
 Then we can create the Loadbalancer:
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 64
+  :lines: 73
 
 
 As an intermezzo we also need a diffusion operator which is separate from the
 loadbalancer:
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 67-93
+  :lines: 76-102
 
 And with this loadbalancer + diffusion operator we can iterate to our
 heart's content:
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 96-110
+  :lines: 105-125
 
 Lastly we can create visualise this quite easily with matplotlib!
 
 .. literalinclude:: ../tests/test_rd.py
-  :lines: 112-
+  :lines: 127-
 
 .. image:: ../images/gray_scott_rd.png

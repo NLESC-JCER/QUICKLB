@@ -2,6 +2,7 @@ from quicklb import Loadbalancer
 import numpy as np
 from mpi4py import MPI
 import matplotlib.pyplot as plt
+import scipy.integrate
 comm = MPI.COMM_WORLD
 
 def allocate_shared_array(size):
@@ -13,7 +14,7 @@ def allocate_shared_array(size):
   return np.ndarray(size,dtype=np.float64,buffer=buf), win
 
 # Using shared array we cheat a bit to  make it simpler
-size = 100
+size = 30
 A, winA = allocate_shared_array((size,size))
 B, winB = allocate_shared_array((size,size))
 
@@ -45,9 +46,17 @@ class Cell():
   def compute(self):
     a = self.A[0]
     b = self.B[0]
+    soln =scipy.integrate.solve_ivp(Cell.deriv,(0,1),(a,b),
+        method='BDF', rtol=0.0001)
+    self.A[0] = soln.y[0][-1]
+    self.B[0] = soln.y[1][-1]
+
+  def deriv(t,y):
+    a, b = y
     abb = a*b*b
-    self.A[0] = a - abb + 0.0545*(1-a)
-    self.B[0] = b + abb - (0.0545+0.062)*b
+    adot =  - abb + 0.0545 * ( 1 - a )
+    bdot =  + abb - ( 0.0545 + 0.062 ) * b
+    return adot, bdot
 
   def serialize(self):
     return np.concatenate( (self.A.view(dtype=np.byte),
@@ -61,7 +70,7 @@ class Cell():
 cells = [Cell(A_local[i,j:j+1], B_local[i,j:j+1])
          for j in range(size) for i in range(A_local.shape[0])]
 
-lb = Loadbalancer(cells, "GREEDY", 0.01, 0.01, 10)
+lb = Loadbalancer(cells, "SORT", 0.01, 0.01, 3)
 
 
 A_diff = np.empty(shape=(A_local.shape[0]+2,A_local.shape[1]+2))
@@ -93,7 +102,8 @@ def diffuse():
   return LA,LB
 
 
-number_of_iterations = 6000
+number_of_iterations = 100
+lb.partition()
 for i in range(number_of_iterations):
   winA.Sync()
   winB.Sync()
@@ -101,9 +111,14 @@ for i in range(number_of_iterations):
   LA,LB = diffuse()
 
   # Chemistry
-  if i%10 == 0:
+  if i%10 == 1:
     lb.partition()
     lb.partitioning_info()
+  if i%10 == 0:
+    if comm.Get_rank() == 0:
+      plt.imshow(B)
+      plt.show(block=False)
+      plt.pause(0.03)
   lb.iterate()
 
   A_local[:,:] = A_local + 0.1*LA
