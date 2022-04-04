@@ -6,7 +6,11 @@
 Welcome to QUICKLB's documentation!
 ===================================
 
-For now the most interesting is the :ref:`examples` section.
+QUICKLB is a very efficient library that sacrifices optimality for speed.
+It shines in distributed applications that have unpredictable unbalanced computational peaks in their domains.
+To begin using QUICKLB we refer you to the :ref:`installation` section and the example in the :ref:`examples` section.
+
+API documentation can be found in the :ref:`loadbalancer` section
 
 
 
@@ -15,6 +19,7 @@ For now the most interesting is the :ref:`examples` section.
    :hidden:
    :caption: Contents:
    
+   installation
    examples
    loadbalancer
 
