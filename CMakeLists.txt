@@ -33,6 +33,7 @@ file(GLOB fortran_source "lb/*.f")
 
 add_library(quicklb SHARED ${fortran_source})
 add_library(quicklb_static STATIC $<TARGET_OBJECTS:quicklb>)
+set_target_properties(quicklb PROPERTIES PUBLIC_HEADER ${CMAKE_BINARY_DIR}/quicklb.mod)
 
 option(PYTHON_INTERFACE "Build the python interface through f2py")
 
@@ -43,7 +44,7 @@ if(PYTHON_INTERFACE)
                              ${CMAKE_SOURCE_DIR}/f2py_f2cmap
                      BYPRODUCTS ${CMAKE_BINARY_DIR}/quicklb_lib.cpython*.so
                      COMMAND f2py --overwrite-signature -m quicklb_lib -h quicklb_lib.pyf 
-                     ${CMAKE_SOURCE_DIR}/lb/lb_interface.f
+                     ${CMAKE_SOURCE_DIR}/lb/lb_python_api.f
                      COMMAND f2py -m quicklb_lib -c quicklb_lib.pyf
                      --f2cmap ${CMAKE_SOURCE_DIR}/f2py_f2cmap
                      $<TARGET_FILE:quicklb_static> -lmpi_usempif08 -lmpi -lgfortran
@@ -53,3 +54,5 @@ endif()
 
 message(STATUS "Fortran compiler : " ${CMAKE_Fortran_COMPILER})
 message(STATUS "Fortran compiler flags : ${CMAKE_Fortran_FLAGS}")
+
+install (TARGETS quicklb quicklb_static)

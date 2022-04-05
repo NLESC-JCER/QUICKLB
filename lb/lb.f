@@ -83,7 +83,7 @@
 !---- What is its entry in vxtdist?
         integer(int32)                           :: pc_vtxdist_id = 0
 !---- Real(4) is used so we can use MPI_FLOAT
-        real(real32), allocatable                :: weights(:)
+        real(real32), pointer                    :: weights(:)
         real(real32), allocatable                :: weights_prev(:)
 
 !---- Communications structure for fast communication
@@ -736,7 +736,7 @@
         if (allocated(this%local_ids))
      &    deallocate(this%local_ids)
         if (allocated(this%vtxdist)) deallocate(this%vtxdist)
-        if (allocated(this%weights)) deallocate(this%weights)
+        if (associated(this%weights)) deallocate(this%weights)
         if (allocated(this%weights_prev)) deallocate(this%weights_prev)
 #ifdef ENABLE_ZOLTAN
         if (associated(this%zoltan)) deallocate(this%zoltan)

@@ -34,7 +34,7 @@ The library can be created through cmake directly:
   
   $ mkdir build
   $ cd build
-  $ cmake ../ -DCMAKE_BUILD_TYPE={RELEASE,DEBUG}  -DPYTHON_INTERFACE={off,on}
+  $ cmake ../ -DFortran_COMPILER=mpif90 -DCMAKE_BUILD_TYPE={RELEASE,DEBUG}  -DPYTHON_INTERFACE={off,on}
 
 Or it can be created throught the python setuptools:
 
