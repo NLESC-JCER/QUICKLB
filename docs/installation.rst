@@ -28,16 +28,19 @@ For python functionality:
 - matplotlib **>= 3.5.1**
 - scipy **>= 1.8**
 
-The library can be created through cmake directly:
+The library can be created through cmake directly, the CMakeFile honors the CONDA_PREFIX if present, and tries to install there instead of the default install location:
 
 .. code:: bash
   
   $ mkdir build
   $ cd build
   $ cmake ../ -DFortran_COMPILER=mpif90 -DCMAKE_BUILD_TYPE={RELEASE,DEBUG}  -DPYTHON_INTERFACE={off,on}
+  $ make 
+  $ make install
 
 Or it can be created throught the python setuptools:
 
 .. code:: bash
   
   $ python setup.py install
+

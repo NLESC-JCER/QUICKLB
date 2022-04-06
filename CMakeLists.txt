@@ -9,9 +9,15 @@ set(CMAKE_Fortran_COMPILER ${Fortran_COMPILER})
 
 project(QUICKLB LANGUAGES Fortran)
 
+if (DEFINED ENV{CONDA_PREFIX})
+  set(CMAKE_INSTALL_PREFIX $ENV{CONDA_PREFIX} CACHE PATH "..." FORCE)
+endif()
+message(STATUS "Install prefix: ${CMAKE_INSTALL_PREFIX}" )
+
+
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -Wall -Wextra \
     -Wno-compare-reals -ffixed-form -fimplicit-none \
-    -ffixed-line-length-none") # Shared Flags
+    -ffixed-line-length-none -march=native -mtune=native") # Shared Flags
 if (CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fpp") #Preprocessor
 else()
